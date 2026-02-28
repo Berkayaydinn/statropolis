@@ -1,0 +1,2 @@
+-- Statropolis Seed Data (Countries dataset load)
+-- To be implemented after schema is finalized
