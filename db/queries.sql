@@ -1,0 +1,5 @@
+-- Required SQL queries for the project:
+-- 1) JOIN query for investment history
+-- 2) GROUP BY query for sector analytics
+-- 3) ORDER BY query for leaderboard ranking
+-- To be implemented in Week 3/4
