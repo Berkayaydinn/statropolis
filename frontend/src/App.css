@@ -1084,6 +1084,10 @@ button.primaryButton,
 }
 
 .mapTooltip {
+  position: absolute !important;
+  left: auto !important;
+  right: 36px !important;
+  top: 150px !important;
   min-width: 245px !important;
   max-width: 300px !important;
   padding: 13px 15px !important;
@@ -1093,6 +1097,7 @@ button.primaryButton,
   box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42) !important;
   backdrop-filter: blur(8px) !important;
   z-index: 50 !important;
+  pointer-events: none !important;
 }
 
 .mapTooltip strong {
