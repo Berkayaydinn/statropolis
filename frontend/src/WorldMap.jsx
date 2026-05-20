@@ -70,6 +70,22 @@ function formatPercent(value) {
   return `${Number(value).toFixed(1)}%`;
 }
 
+function formatNumber(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "-";
+  }
+
+  return Number(value).toLocaleString();
+}
+
+function formatYears(value) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
+    return "-";
+  }
+
+  return `${Number(value).toFixed(1)} years`;
+}
+
 export default function WorldMap({ countries = [], onSelect }) {
   const svgRef = useRef(null);
   const wrapRef = useRef(null);
@@ -178,7 +194,11 @@ export default function WorldMap({ countries = [], onSelect }) {
             setTooltip({
               name,
               flag: meta.flag || "🌍",
+              population: matchedCountry?.population,
+              gdp: matchedCountry?.gdp,
               gdpPerCapita: matchedCountry?.gdp_per_capita,
+              lifeExpectancy: matchedCountry?.life_expectancy,
+              literacyRate: matchedCountry?.literacy_rate,
               unemployment: matchedCountry?.unemployment_rate,
               x: event.clientX - rect.left + 12,
               y: event.clientY - rect.top - 10
@@ -295,12 +315,40 @@ export default function WorldMap({ countries = [], onSelect }) {
           <strong>
             {tooltip.flag} {tooltip.name}
           </strong>
-          <div>GDP/cap: {formatMoney(tooltip.gdpPerCapita)}</div>
-          <div>Unemployment: {formatPercent(tooltip.unemployment)}</div>
-          <span>Click to select →</span>
+      
+          <div>
+            <span>Population</span>
+            <b>{formatNumber(tooltip.population)}</b>
+          </div>
+      
+          <div>
+            <span>GDP</span>
+            <b>{formatMoney(tooltip.gdp)}</b>
+          </div>
+      
+          <div>
+            <span>GDP/cap</span>
+            <b>{formatMoney(tooltip.gdpPerCapita)}</b>
+          </div>
+      
+          <div>
+            <span>Life expectancy</span>
+            <b>{formatYears(tooltip.lifeExpectancy)}</b>
+          </div>
+      
+          <div>
+            <span>Literacy rate</span>
+            <b>{formatPercent(tooltip.literacyRate)}</b>
+          </div>
+      
+          <div>
+            <span>Unemployment</span>
+            <b>{formatPercent(tooltip.unemployment)}</b>
+          </div>
+      
+          <em>Click to select →</em>
         </div>
       )}
-
       <div className="mapLegend">
         <span>
           <i className="legendPlayable" /> Playable
