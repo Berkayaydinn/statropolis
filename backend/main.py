@@ -5,11 +5,11 @@ from pydantic import BaseModel
 from database import fetch_all, fetch_one, execute_query, insert_and_return
 
 # This creates the FastAPI application.
-# The backend will provide API routes for the frontend.
+# The backend provides API routes for the React frontend.
 app = FastAPI(title="Statropolis API")
 
 # I allow the frontend to call this backend during local development.
-# This is needed because React usually runs on a different port.
+# React usually runs on port 5173 and FastAPI runs on port 8000.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,8 +20,9 @@ app.add_middleware(
 
 
 class StartGameRequest(BaseModel):
-    # The frontend sends the selected country id when the user starts a game.
+    # The frontend sends the selected country and the player username.
     country_id: int
+    username: str = "demo_player"
 
 
 class InvestRequest(BaseModel):
@@ -32,12 +33,60 @@ class InvestRequest(BaseModel):
 
 
 class EventStateUpdateRequest(BaseModel):
-    # The frontend sends this after a random event changes the game state.
-    # I keep event updates separate from normal investments so the history stays clean.
+    # Random events change the game state outside a normal investment.
     player_country_id: int
     budget: float
     happiness: float
     development_score: float
+
+
+class UserRequest(BaseModel):
+    username: str
+
+
+class RenameUserRequest(BaseModel):
+    username: str
+
+
+def normalize_username(username: str) -> str:
+    cleaned = username.strip()
+
+    if len(cleaned) < 2:
+        raise HTTPException(status_code=400, detail="Username must be at least 2 characters.")
+
+    if len(cleaned) > 30:
+        raise HTTPException(status_code=400, detail="Username must be 30 characters or shorter.")
+
+    return cleaned
+
+
+def get_or_create_user(username: str):
+    # I keep the user system simple for the prototype.
+    # Username is enough for the classroom demo; email/password are placeholder values
+    # because the schema already contains these columns.
+    clean_username = normalize_username(username)
+
+    existing = fetch_one(
+        "SELECT user_id, username, created_at FROM users WHERE username = %s;",
+        (clean_username,)
+    )
+
+    if existing:
+        return existing
+
+    safe_email_name = clean_username.lower().replace(" ", "_")
+    email = f"{safe_email_name}@statropolis.local"
+
+    new_user = insert_and_return(
+        """
+        INSERT INTO users (username, email, password_hash)
+        VALUES (%s, %s, %s)
+        RETURNING user_id, username, created_at;
+        """,
+        (clean_username, email, "prototype-no-login-password")
+    )
+
+    return new_user
 
 
 @app.get("/")
@@ -46,9 +95,77 @@ def home():
     return {"message": "Statropolis API is running"}
 
 
+# ──────────────────────────────────────────────────────────────
+# USER CRUD ENDPOINTS
+# These make the leaderboard feel real because different usernames
+# can play from different browsers/computers and appear in the ranking.
+# ──────────────────────────────────────────────────────────────
+
+@app.post("/users")
+def create_or_get_user(request: UserRequest):
+    # CREATE if username does not exist, READ if it already exists.
+    return get_or_create_user(request.username)
+
+
+@app.get("/users")
+def get_users():
+    # READ all prototype users.
+    query = """
+        SELECT
+            u.user_id,
+            u.username,
+            u.created_at,
+            COUNT(pc.player_country_id) AS active_games
+        FROM users u
+        LEFT JOIN player_country pc ON u.user_id = pc.user_id
+        GROUP BY u.user_id, u.username, u.created_at
+        ORDER BY u.created_at DESC;
+    """
+    return fetch_all(query)
+
+
+@app.put("/users/{user_id}")
+def rename_user(user_id: int, request: RenameUserRequest):
+    # UPDATE username.
+    clean_username = normalize_username(request.username)
+
+    updated = insert_and_return(
+        """
+        UPDATE users
+        SET username = %s
+        WHERE user_id = %s
+        RETURNING user_id, username, created_at;
+        """,
+        (clean_username, user_id)
+    )
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return updated
+
+
+@app.delete("/users/{user_id}")
+def delete_user(user_id: int):
+    # DELETE user. Related player_country rows are removed by ON DELETE CASCADE.
+    deleted = insert_and_return(
+        """
+        DELETE FROM users
+        WHERE user_id = %s
+        RETURNING user_id, username;
+        """,
+        (user_id,)
+    )
+
+    if not deleted:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {"message": "User deleted", "user": deleted}
+
+
 @app.get("/countries")
 def get_countries():
-    # This route returns all countries for the country selection dropdown.
+    # This route returns all countries for the country selection map.
     query = """
         SELECT
             country_id,
@@ -85,7 +202,10 @@ def get_country(country_id: int):
 
 @app.post("/start-game")
 def start_game(request: StartGameRequest):
-    # First, I get the selected country from the database.
+    # First, I get or create the user who is playing this campaign.
+    user = get_or_create_user(request.username)
+
+    # Then I get the selected country from the database.
     country = fetch_one(
         "SELECT * FROM countries WHERE country_id = %s;",
         (request.country_id,)
@@ -118,26 +238,27 @@ def start_game(request: StartGameRequest):
     # Each turn gives the player income.
     income_per_turn = base_budget * 0.10
 
-    # For the prototype, I use one demo user.
-    # If the demo user already has a game, I reset it.
+    # One user has one active country at a time.
+    # Starting a new campaign resets only this user's old campaign.
     existing_game = fetch_one(
-        "SELECT * FROM player_country WHERE user_id = 1;",
-        ()
+        "SELECT * FROM player_country WHERE user_id = %s;",
+        (user["user_id"],)
     )
 
     if existing_game:
-        execute_query("DELETE FROM player_country WHERE user_id = 1;", ())
+        execute_query("DELETE FROM player_country WHERE user_id = %s;", (user["user_id"],))
 
     insert_query = """
         INSERT INTO player_country
         (user_id, country_id, budget, happiness, development_score, income_per_turn)
-        VALUES (1, %s, %s, %s, %s, %s)
+        VALUES (%s, %s, %s, %s, %s, %s)
         RETURNING *;
     """
 
     new_game = insert_and_return(
         insert_query,
         (
+            user["user_id"],
             request.country_id,
             base_budget,
             happiness,
@@ -151,11 +272,12 @@ def start_game(request: StartGameRequest):
 
 @app.get("/game-state/{player_country_id}")
 def get_game_state(player_country_id: int):
-    # This route returns the current game state with the country name.
+    # This route returns the current game state with the country name and username.
     query = """
         SELECT
             pc.player_country_id,
             pc.user_id,
+            u.username,
             pc.country_id,
             c.country_name,
             pc.budget,
@@ -165,6 +287,7 @@ def get_game_state(player_country_id: int):
             pc.income_per_turn,
             pc.started_at
         FROM player_country pc
+        JOIN users u ON pc.user_id = u.user_id
         JOIN countries c ON pc.country_id = c.country_id
         WHERE pc.player_country_id = %s;
     """
@@ -215,8 +338,6 @@ def make_investment(request: InvestRequest):
     if float(game["budget"]) < request.investment_amount:
         raise HTTPException(status_code=400, detail="Not enough budget")
 
-    # These are simple sector effects for the first prototype.
-    # Later, this can be improved with more realistic formulas.
     sector_effects = {
         "Education": {"development": 4, "happiness": 2},
         "Healthcare": {"development": 2, "happiness": 5},
@@ -293,11 +414,10 @@ def make_investment(request: InvestRequest):
 
 @app.post("/apply-event-state")
 def apply_event_state(request: EventStateUpdateRequest):
-    # This endpoint is used when a campaign event changes the game state.
-    # It updates the active player_country row so frontend event choices remain
-    # consistent with the PostgreSQL database.
-
-    update_query = """
+    # Event effects are not normal investments, but they still change the active country.
+    # I store the new values in PostgreSQL so the next investment continues from the correct state.
+    updated = insert_and_return(
+        """
         UPDATE player_country
         SET
             budget = %s,
@@ -305,19 +425,16 @@ def apply_event_state(request: EventStateUpdateRequest):
             development_score = %s
         WHERE player_country_id = %s
         RETURNING player_country_id;
-    """
-
-    updated = insert_and_return(
-        update_query,
+        """,
         (
             request.budget,
             request.happiness,
             request.development_score,
-            request.player_country_id,
-        ),
+            request.player_country_id
+        )
     )
 
-    if updated is None:
+    if not updated:
         raise HTTPException(status_code=404, detail="Game state not found")
 
     return get_game_state(request.player_country_id)
@@ -325,8 +442,7 @@ def apply_event_state(request: EventStateUpdateRequest):
 
 @app.get("/analytics/sector-summary")
 def sector_summary():
-    # Complex Query 2: multi-table JOIN + GROUP BY + aggregate functions.
-    # This query connects investment history with user and country context.
+    # Complex Query: 4-table JOIN + GROUP BY + aggregate functions.
     query = """
         SELECT
             u.username,
@@ -357,7 +473,6 @@ def sector_summary():
 def leaderboard():
     # Complex Query 1: 3-table JOIN + RANK window function.
     # Returns all players ranked by development score.
-    # Used on the Leaderboard page.
     query = """
         SELECT
             u.username,
@@ -379,7 +494,6 @@ def leaderboard():
 def neglected_sectors():
     # Complex Query 3: 3-table JOIN + LEFT OUTER JOIN + IS NULL.
     # Finds players who have never invested in Education.
-    # Used by the AI Advisor to generate recommendations.
     query = """
         SELECT
             u.username,
@@ -401,8 +515,6 @@ def neglected_sectors():
 @app.get("/analytics/country-stats")
 def country_stats():
     # Complex Query 4: LEFT JOIN + GROUP BY + HAVING + AVG/COUNT/MAX.
-    # Ranks countries by average player development score.
-    # Used on the country selection screen.
     query = """
         SELECT
             c.country_name,
@@ -422,9 +534,6 @@ def country_stats():
 @app.get("/analytics/above-average")
 def above_average():
     # Complex Query 5: 3-table JOIN + nested subquery used twice.
-    # Finds players whose development score exceeds the global average.
-    # Also calculates each player's margin above that average.
-    # Used in the "Rising Nations" leaderboard section.
     query = """
         SELECT
             u.username,
