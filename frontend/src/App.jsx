@@ -576,9 +576,11 @@ export default function App() {
   const [gameResult, setGameResult] = useState(null);
   const [activeEvent, setActiveEvent] = useState(null);
   const [pendingState, setPendingState] = useState(null);
+  const [leaderboard, setLeaderboard] = useState([]);
 
   useEffect(() => {
     loadCountries();
+    loadLeaderboard();
   }, []);
 
   async function loadCountries() {
@@ -594,6 +596,22 @@ export default function App() {
     } catch {
       setCountries(fallbackCountries);
       setMessage("Backend is not connected yet. The map is running with demo countries.");
+    }
+  }
+
+  async function loadLeaderboard() {
+    try {
+      const response = await fetch(`${API_BASE}/analytics/leaderboard`);
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data = await response.json();
+      setLeaderboard(Array.isArray(data) ? data : []);
+    } catch {
+      // I keep this silent because the game can still run without analytics.
+      setLeaderboard([]);
     }
   }
 
@@ -663,6 +681,8 @@ export default function App() {
       setMessage(
         `Simulation started with ${state.country_name}. Reach the campaign targets before turn ${MAX_TURNS}.`
       );
+
+      loadLeaderboard();
     } catch {
       setMessage("Backend connection failed. Make sure FastAPI is running on port 8000.");
     }
@@ -777,6 +797,8 @@ export default function App() {
         );
       }
 
+      loadLeaderboard();
+
       const result = evaluateCampaign(savedState);
 
       if (result.finished) {
@@ -846,6 +868,8 @@ export default function App() {
         const historyData = await historyResponse.json();
         setInvestments(Array.isArray(historyData) ? historyData : []);
       }
+
+      loadLeaderboard();
 
       const newTurn = Number(data.turn_number);
       const event = getEventForTurn(newTurn);
@@ -1180,6 +1204,37 @@ export default function App() {
                 </div>
               ))}
             </div>
+          </section>
+        )}
+
+        {gameState && (
+          <section className="panel leaderboardPanel widePanel">
+            <div className="panelHeader">
+              <div>
+                <h2>Leaderboard</h2>
+                <p>Players are ranked by development score using the backend analytics query.</p>
+              </div>
+
+              <button className="primaryButton compactButton" onClick={loadLeaderboard}>
+                Refresh
+              </button>
+            </div>
+
+            {leaderboard.length === 0 ? (
+              <p className="emptyText">No leaderboard data yet. Start a campaign and make investments first.</p>
+            ) : (
+              <div className="leaderboardList">
+                {leaderboard.slice(0, 5).map((row, index) => (
+                  <div className="leaderboardItem" key={`${row.username}-${row.country_name}-${index}`}>
+                    <strong>#{row.rank || index + 1}</strong>
+                    <span>{row.username || "demo_player"}</span>
+                    <span>{row.country_name}</span>
+                    <span>Dev {fmtNumber(row.development_score)}</span>
+                    <span>Hap {fmtNumber(row.happiness)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
         )}
 
