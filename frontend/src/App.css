@@ -1039,3 +1039,46 @@ button.primaryButton,
     justify-content: flex-start;
   }
 }
+
+.resultModalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(3, 7, 18, 0.86);
+  backdrop-filter: blur(10px);
+}
+
+.resultModalCard {
+  width: min(520px, 92vw);
+  padding: 34px 38px;
+  border-radius: 24px;
+  text-align: center;
+  background: rgba(7, 18, 34, 0.98);
+  box-shadow: 0 32px 90px rgba(0, 0, 0, 0.42);
+}
+
+.resultModalCard h2 {
+  margin: 8px 0 12px;
+  color: #eef6ff;
+  font-size: clamp(32px, 5vw, 52px);
+  line-height: 1;
+}
+
+.resultModalCard p:not(.missionLabel) {
+  margin: 0 auto 24px;
+  max-width: 420px;
+  color: #cbd5e1;
+  line-height: 1.65;
+}
+
+.resultModalWin {
+  border: 1.5px solid rgba(95, 224, 176, 0.75);
+}
+
+.resultModalLose {
+  border: 1.5px solid rgba(248, 113, 113, 0.75);
+}
