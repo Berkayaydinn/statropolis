@@ -31,6 +31,15 @@ class InvestRequest(BaseModel):
     investment_amount: float
 
 
+class EventStateUpdateRequest(BaseModel):
+    # The frontend sends this after a random event changes the game state.
+    # I keep event updates separate from normal investments so the history stays clean.
+    player_country_id: int
+    budget: float
+    happiness: float
+    development_score: float
+
+
 @app.get("/")
 def home():
     # I use this simple route to quickly check if the backend is running.
@@ -282,20 +291,57 @@ def make_investment(request: InvestRequest):
     return get_game_state(request.player_country_id)
 
 
+@app.post("/apply-event-state")
+def apply_event_state(request: EventStateUpdateRequest):
+    # This endpoint is used when a campaign event changes the game state.
+    # It updates the active player_country row so frontend event choices remain
+    # consistent with the PostgreSQL database.
+
+    update_query = """
+        UPDATE player_country
+        SET
+            budget = %s,
+            happiness = %s,
+            development_score = %s
+        WHERE player_country_id = %s
+        RETURNING player_country_id;
+    """
+
+    updated = insert_and_return(
+        update_query,
+        (
+            request.budget,
+            request.happiness,
+            request.development_score,
+            request.player_country_id,
+        ),
+    )
+
+    if updated is None:
+        raise HTTPException(status_code=404, detail="Game state not found")
+
+    return get_game_state(request.player_country_id)
+
+
 @app.get("/analytics/sector-summary")
 def sector_summary():
-    # This route summarizes total investment by sector.
-    # It will be useful for the analytics part of the project.
+    # Complex Query 2: multi-table JOIN + GROUP BY + aggregate functions.
+    # This query connects investment history with user and country context.
     query = """
         SELECT
-            sector_type,
-            SUM(investment_amount) AS total_invested,
-            COUNT(*) AS investment_count,
-            AVG(development_effect) AS avg_development_effect,
-            AVG(happiness_effect) AS avg_happiness_effect
-        FROM investments
-        GROUP BY sector_type
-        ORDER BY total_invested DESC;
+            u.username,
+            c.country_name,
+            i.sector_type,
+            COUNT(i.investment_id) AS total_investments,
+            SUM(i.investment_amount) AS total_spent,
+            ROUND(AVG(i.development_effect), 2) AS avg_development_effect,
+            ROUND(AVG(i.happiness_effect), 2) AS avg_happiness_effect
+        FROM investments i
+        JOIN player_country pc ON i.player_country_id = pc.player_country_id
+        JOIN users u ON pc.user_id = u.user_id
+        JOIN countries c ON pc.country_id = c.country_id
+        GROUP BY u.username, c.country_name, i.sector_type
+        ORDER BY total_spent DESC;
     """
 
     return fetch_all(query)
