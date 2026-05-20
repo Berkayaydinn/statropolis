@@ -584,7 +584,7 @@ function PlayerModal({ usernameInput, setUsernameInput, onStart }) {
                 onStart();
               }
             }}
-            placeholder="Example: Berkay"
+            placeholder="Example: user123"
             maxLength={30}
             autoFocus
           />
@@ -593,9 +593,25 @@ function PlayerModal({ usernameInput, setUsernameInput, onStart }) {
           </button>
         </div>
 
-        <span className="playerModalHint">
-          CRUD note: users are created/read/updated/deleted through backend user endpoints.
-        </span>
+      </div>
+    </div>
+  );
+}
+
+function ResultModal({ result, onRestart }) {
+  if (!result) {
+    return null;
+  }
+
+  return (
+    <div className="resultModalBackdrop">
+      <div className={`resultModalCard ${result.win ? "resultModalWin" : "resultModalLose"}`}>
+        <p className="missionLabel">Campaign Result</p>
+        <h2>{result.title}</h2>
+        <p>{result.description}</p>
+        <button className="primaryButton" onClick={onRestart}>
+          Start New Campaign
+        </button>
       </div>
     </div>
   );
@@ -614,8 +630,8 @@ export default function App() {
   const [activeEvent, setActiveEvent] = useState(null);
   const [pendingState, setPendingState] = useState(null);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [username, setUsername] = useState(() => localStorage.getItem("statropolis_username") || "");
-  const [usernameInput, setUsernameInput] = useState(() => localStorage.getItem("statropolis_username") || "");
+  const [username, setUsername] = useState("");
+  const [usernameInput, setUsernameInput] = useState("");
 
   useEffect(() => {
     loadCountries();
@@ -630,13 +646,11 @@ export default function App() {
       return;
     }
 
-    localStorage.setItem("statropolis_username", cleaned);
     setUsername(cleaned);
     setMessage(`Welcome, ${cleaned}. Choose a country to start your campaign.`);
   }
 
   function changePlayer() {
-    localStorage.removeItem("statropolis_username");
     setUsername("");
     setUsernameInput("");
     setSelectedCountry(null);
@@ -680,6 +694,29 @@ export default function App() {
       // I keep this silent because the game can still run without analytics.
       setLeaderboard([]);
     }
+  }
+
+  async function clearLeaderboard() {
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE}/analytics/leaderboard`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        setMessage("Could not clear the leaderboard.");
+        setLoading(false);
+        return;
+      }
+
+      setLeaderboard([]);
+      setMessage("Leaderboard cleared. Player campaigns were removed from the database ranking table.");
+    } catch {
+      setMessage("Could not connect to the backend to clear the leaderboard.");
+    }
+
+    setLoading(false);
   }
 
   function handleCountrySelect(country) {
@@ -921,7 +958,19 @@ export default function App() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.detail || "Investment failed.");
+        const detail = data.detail || "Investment failed.";
+        setMessage(detail);
+
+        if (detail.toLowerCase().includes("not enough budget")) {
+          setGameResult({
+            finished: true,
+            win: false,
+            title: "You Lose",
+            description:
+              "The campaign ended because the country did not have enough budget for the selected investment. A sustainable strategy must keep money available for future turns.",
+          });
+        }
+
         setLoading(false);
         return;
       }
@@ -993,6 +1042,16 @@ export default function App() {
     const reachedDevelopment = development >= campaign.targetDevelopment;
     const reachedHappiness = happiness >= campaign.targetHappiness;
     const protectedBudget = budget >= campaign.minimumFinalBudget;
+
+    if (budget <= 0) {
+      return {
+        finished: true,
+        win: false,
+        title: "You Lose",
+        description:
+          "The campaign budget reached zero. The country can no longer continue the strategy, so the game ends as a loss.",
+      };
+    }
 
     const win = reachedDevelopment && reachedHappiness && protectedBudget;
 
@@ -1299,12 +1358,21 @@ export default function App() {
             <div className="panelHeader">
               <div>
                 <h2>Leaderboard</h2>
-                <p>Players are ranked by development score using the backend analytics query.</p>
+                <p>
+                  Ranking is based on development score. The data is saved in PostgreSQL in
+                  player_country, connected with users and countries through the analytics query.
+                </p>
               </div>
 
-              <button className="primaryButton compactButton" onClick={loadLeaderboard}>
-                Refresh
-              </button>
+              <div className="panelActionRow">
+                <button className="secondaryButton compactButton" onClick={clearLeaderboard} disabled={loading}>
+                  Clear Leaderboard
+                </button>
+
+                <button className="primaryButton compactButton" onClick={loadLeaderboard}>
+                  Refresh
+                </button>
+              </div>
             </div>
 
             {leaderboard.length === 0 ? (
@@ -1373,6 +1441,7 @@ export default function App() {
       </main>
 
       {activeEvent && <EventModal event={activeEvent} onResolve={resolveEvent} />}
+      {gameResult && <ResultModal result={gameResult} onRestart={resetCampaign} />}
     </div>
   );
 }
