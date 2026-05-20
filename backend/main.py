@@ -490,6 +490,18 @@ def leaderboard():
     return fetch_all(query)
 
 
+@app.delete("/analytics/leaderboard")
+def clear_leaderboard():
+    # DELETE operation for the demo leaderboard.
+    # The leaderboard is generated from player_country, so clearing player_country
+    # removes every ranking row. Investments are removed first because they depend
+    # on player_country. The users table stays available for the user CRUD demo.
+    execute_query("DELETE FROM investments;")
+    execute_query("DELETE FROM player_country;")
+
+    return {"message": "Leaderboard cleared"}
+
+
 @app.get("/analytics/neglected-sectors")
 def neglected_sectors():
     # Complex Query 3: 3-table JOIN + LEFT OUTER JOIN + IS NULL.
