@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import * as d3 from "d3";
 import * as topojson from "topojson-client";
 
+// I keep a small flag dictionary for the countries we highlight more clearly.
+// This is only for visual display on the map; the actual country data still
+// comes from the backend and the countries table.
 const COUNTRY_META = {
   Turkey: { flag: "🇹🇷" },
   Germany: { flag: "🇩🇪" },
@@ -23,6 +26,8 @@ const COUNTRY_META = {
   "Korea, Republic Of": { flag: "🇰🇷" }
 };
 
+// The world map dataset and our CSV dataset sometimes use different country names.
+// I use aliases so names from the map can match the names stored in our database.
 const NAME_ALIASES = {
   Türkiye: "Turkey",
   Turkiye: "Turkey",
@@ -51,10 +56,13 @@ const NAME_ALIASES = {
 };
 
 function cleanName(name) {
+  // This converts map country names into the same naming style as our database.
+  // If there is no alias, I keep the original name.
   return NAME_ALIASES[name] || name;
 }
 
 function formatMoney(value) {
+  // This formats GDP and GDP per capita values for the tooltip.
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return "-";
   }
@@ -63,6 +71,7 @@ function formatMoney(value) {
 }
 
 function formatPercent(value) {
+  // This formats percentage-style values such as literacy rate and unemployment.
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return "-";
   }
@@ -71,6 +80,7 @@ function formatPercent(value) {
 }
 
 function formatNumber(value) {
+  // This formats large numbers like population with commas.
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return "-";
   }
@@ -79,6 +89,7 @@ function formatNumber(value) {
 }
 
 function formatYears(value) {
+  // This formats life expectancy as a readable year value.
   if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return "-";
   }
@@ -89,6 +100,9 @@ function formatYears(value) {
 export default function WorldMap({ countries = [], onSelect }) {
   const svgRef = useRef(null);
   const wrapRef = useRef(null);
+
+  // I use refs for selected country and country lookup because D3 event handlers
+  // need access to the latest values without constantly rebuilding everything.
   const selectedNameRef = useRef(null);
   const countryByNameRef = useRef(new Map());
   const playableNamesRef = useRef(new Set());
@@ -97,17 +111,23 @@ export default function WorldMap({ countries = [], onSelect }) {
   const [tooltip, setTooltip] = useState(null);
 
   useEffect(() => {
+    // I keep the latest onSelect function in a ref so the D3 click handler
+    // can call the current React callback.
     onSelectRef.current = onSelect;
   }, [onSelect]);
 
   useEffect(() => {
     if (!countries || countries.length === 0) return;
 
+    // I turn the countries array from the backend into a Map for quick lookup by name.
+    // This lets the map quickly find the matching database country when the user hovers.
     const countryByName = new Map(
       countries.map((country) => [cleanName(country.country_name), country])
     );
 
     countryByNameRef.current = countryByName;
+
+    // Only countries that exist in our database are playable/clickable.
     playableNamesRef.current = new Set(countryByName.keys());
   }, [countries]);
 
@@ -123,12 +143,16 @@ export default function WorldMap({ countries = [], onSelect }) {
     const height = Math.round(width * 0.5);
 
     const svg = d3.select(svgElement);
+
+    // I clear the SVG before drawing so the map does not duplicate itself
+    // when countries are reloaded or the component updates.
     svg.selectAll("*").remove();
 
     svgElement.setAttribute("viewBox", `0 0 ${width} ${height}`);
     svgElement.setAttribute("width", "100%");
     svgElement.setAttribute("height", height);
 
+    // NaturalEarth projection gives a clean world map shape for this type of UI.
     const projection = d3
       .geoNaturalEarth1()
       .scale(width / 6.25)
@@ -138,6 +162,8 @@ export default function WorldMap({ countries = [], onSelect }) {
 
     async function drawMap() {
       try {
+        // I load a public world atlas file for the map shapes.
+        // Our own country details still come from the backend countries prop.
         const world = await d3.json(
           "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
         );
@@ -146,6 +172,7 @@ export default function WorldMap({ countries = [], onSelect }) {
 
         const features = topojson.feature(world, world.objects.countries).features;
 
+        // The graticule gives the map a subtle geographic grid.
         svg
           .append("path")
           .datum(d3.geoGraticule()())
@@ -182,6 +209,8 @@ export default function WorldMap({ countries = [], onSelect }) {
           .on("mousemove", function (event, feature) {
             const name = cleanName(feature.properties.name);
 
+            // If the country is not in our database, it is not playable.
+            // I hide the tooltip for those countries.
             if (!playableNamesRef.current.has(name)) {
               setTooltip(null);
               return;
@@ -191,6 +220,9 @@ export default function WorldMap({ countries = [], onSelect }) {
             const rect = wrapper.getBoundingClientRect();
             const meta = COUNTRY_META[name] || {};
 
+            // This tooltip shows the actual database fields we selected from the CSV:
+            // population, GDP, GDP per capita, life expectancy, literacy rate,
+            // and unemployment rate.
             setTooltip({
               name,
               flag: meta.flag || "🌍",
@@ -214,6 +246,8 @@ export default function WorldMap({ countries = [], onSelect }) {
 
             setTooltip(null);
 
+            // When the mouse leaves, I restore the correct color based on
+            // whether the country is selected, playable, or not playable.
             d3.select(this).attr("fill", () => {
               if (name === selectedNameRef.current) return "#38bdf8";
               return playableNamesRef.current.has(name) ? "#1a3a5c" : "#0d1f33";
@@ -222,11 +256,14 @@ export default function WorldMap({ countries = [], onSelect }) {
           .on("click", function (event, feature) {
             const name = cleanName(feature.properties.name);
 
+            // Only countries that exist in the backend dataset can be selected.
             if (!playableNamesRef.current.has(name)) return;
 
             selectedNameRef.current = name;
             setTooltip(null);
 
+            // After selecting a country, I recolor the full map so only one country
+            // appears as selected.
             mapLayer.selectAll("path.country").attr("fill", (currentFeature) => {
               const currentName = cleanName(currentFeature.properties.name);
 
@@ -237,6 +274,7 @@ export default function WorldMap({ countries = [], onSelect }) {
               return playableNamesRef.current.has(currentName) ? "#1a3a5c" : "#0d1f33";
             });
 
+            // I update the marker dot too so the selected country is visually clear.
             markerLayer.selectAll(".mapMarkerDot").attr("fill", function () {
               const markerName = d3.select(this).attr("data-name");
               return markerName === selectedNameRef.current ? "#38bdf8" : "#7dd3fc";
@@ -244,6 +282,8 @@ export default function WorldMap({ countries = [], onSelect }) {
 
             const matchedCountry = countryByNameRef.current.get(name);
 
+            // This sends the selected database country object back to App.jsx.
+            // App.jsx then uses it to start the campaign.
             if (matchedCountry && onSelectRef.current) {
               onSelectRef.current(matchedCountry);
             }
@@ -260,6 +300,8 @@ export default function WorldMap({ countries = [], onSelect }) {
 
           const meta = COUNTRY_META[name] || {};
 
+          // I place a small marker on playable countries so the user can see
+          // which countries are available from our database.
           const marker = markerLayer
             .append("g")
             .attr("class", "countryMarker")
@@ -288,6 +330,7 @@ export default function WorldMap({ countries = [], onSelect }) {
             .text(meta.flag || "");
         });
       } catch {
+        // If the external map file cannot load, I show a readable fallback message.
         svg
           .append("text")
           .attr("x", width / 2)
