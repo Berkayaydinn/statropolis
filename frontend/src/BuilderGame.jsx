@@ -15,10 +15,10 @@ const sectorLabels = {
 // Each "turn" = one full day/night cycle in 12 seconds
 // turnPhase 0..1: 0=dawn, 0.25=noon, 0.5=dusk, 0.75=midnight
 const SKY_COLORS = {
-  dawn:     new THREE.Color(0xff6b35).lerp(new THREE.Color(0x071426), 0.3),
-  noon:     new THREE.Color(0x5bb8f5),
-  dusk:     new THREE.Color(0xff4500).lerp(new THREE.Color(0x1a0533), 0.4),
-  midnight: new THREE.Color(0x020a18),
+  dawn:     new THREE.Color(0xff9f6e).lerp(new THREE.Color(0x13233f), 0.22),
+  noon:     new THREE.Color(0x6ec7ff),
+  dusk:     new THREE.Color(0xff7a45).lerp(new THREE.Color(0x1b123f), 0.32),
+  midnight: new THREE.Color(0x04101f),
 };
 
 function skyColorAt(phase) {
@@ -63,13 +63,14 @@ export default function BuilderGame({ countryName = "", latestInvestment = null,
     // ── SCENE ──
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x071426);
-    scene.fog = new THREE.Fog(0x071426, 18, 38);
+    scene.fog = new THREE.Fog(0x071426, 20, 44);
 
     const width  = wrapper.clientWidth;
     const height = wrapper.clientHeight;
 
-    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 200);
-    camera.position.set(12, 11, 12);
+    const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 200);
+    // I moved the camera closer so the small city assets are easier to see.
+    camera.position.set(8.5, 7.2, 8.5);
     camera.lookAt(0, 0, 0);
 
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -461,7 +462,7 @@ export default function BuilderGame({ countryName = "", latestInvestment = null,
     // ── ANIMATION LOOP ──
     let frame = 0;
     let animId;
-    const CYCLE_FRAMES = 3600; // full day in frames (~60s at 60fps)
+    const CYCLE_FRAMES = 1800; // faster day/night cycle (~30s at 60fps)
 
     function updateDayNight(phase) {
       // Sky & fog
