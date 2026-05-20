@@ -5,9 +5,10 @@ import WorldMap from "./WorldMap.jsx";
 
 const API_BASE = "http://127.0.0.1:8000";
 
-const TARGET_DEV = 180;
-const TARGET_HAPPINESS = 90;
-const MAX_TURNS = 20;
+const MAX_TURNS = 12;
+const TARGET_DEV_GAIN = 45;
+const TARGET_HAPPINESS_GAIN = 5;
+const MIN_FINAL_BUDGET_RATIO = 0.2;
 
 const fallbackCountries = [
   { country_id: 1, country_name: "Turkey" },
@@ -32,8 +33,8 @@ const sectors = [
     icon: "🏥",
     description: "Builds hospitals. Best for protecting happiness and social stability.",
     amount: 100000000,
-    dev: "+3 Dev",
-    happiness: "+4 Hap",
+    dev: "+2 Dev",
+    happiness: "+5 Hap",
     risk: "Safe",
   },
   {
@@ -60,7 +61,7 @@ const sectors = [
     description: "Builds defense facilities. Gives limited development but can lower happiness.",
     amount: 120000000,
     dev: "+2 Dev",
-    happiness: "-3 Hap",
+    happiness: "-2 Hap",
     risk: "High Risk",
   },
   {
@@ -68,9 +69,70 @@ const sectors = [
     icon: "🌱",
     description: "Builds parks and green areas. Slower development but helps happiness.",
     amount: 100000000,
-    dev: "+2 Dev",
-    happiness: "+3 Hap",
+    dev: "+3 Dev",
+    happiness: "+4 Hap",
     risk: "Stable",
+  },
+];
+
+const CRISIS_EVENTS = [
+  {
+    id: "drought",
+    icon: "☀️",
+    title: "Severe Drought",
+    desc: "Water shortages hurt agriculture and lower public confidence.",
+    devHit: -4,
+    hapHit: -7,
+    budgetHit: -70000000,
+    responseCost: 50000000,
+    turn: 4,
+  },
+  {
+    id: "recession",
+    icon: "📉",
+    title: "Economic Recession",
+    desc: "Global markets weaken national income and slow progress.",
+    devHit: -6,
+    hapHit: -6,
+    budgetHit: -180000000,
+    responseCost: 100000000,
+    turn: 8,
+  },
+  {
+    id: "earthquake",
+    icon: "🌋",
+    title: "Natural Disaster",
+    desc: "A disaster damages infrastructure and creates public stress.",
+    devHit: -8,
+    hapHit: -7,
+    budgetHit: -150000000,
+    responseCost: 90000000,
+    turn: 11,
+  },
+];
+
+const GOOD_EVENTS = [
+  {
+    id: "tourism",
+    icon: "✈️",
+    title: "Tourism Boom",
+    desc: "Visitors bring money and improve the country image.",
+    devGain: 3,
+    hapGain: 3,
+    budgetGain: 130000000,
+    boostCost: 60000000,
+    turn: 6,
+  },
+  {
+    id: "tech",
+    icon: "💡",
+    title: "Tech Innovation",
+    desc: "A local innovation creates a chance for faster development.",
+    devGain: 6,
+    hapGain: 2,
+    budgetGain: 80000000,
+    boostCost: 80000000,
+    turn: 10,
   },
 ];
 
@@ -153,13 +215,11 @@ function LandingHero({ countriesCount, gameState, onStartClick }) {
       const horizon = ctx.createLinearGradient(0, height * 0.48, 0, height * 0.6);
       horizon.addColorStop(0, "rgba(30,80,160,0.18)");
       horizon.addColorStop(1, "rgba(10,20,50,0)");
-
       ctx.fillStyle = horizon;
       ctx.fillRect(0, height * 0.45, width, height * 0.18);
 
       ctx.fillStyle = "#060d1a";
       ctx.fillRect(0, baseY, width, height * 0.22);
-
       ctx.fillStyle = "rgba(15,35,80,0.3)";
       ctx.fillRect(0, height * 0.76, width, 4);
 
@@ -204,7 +264,6 @@ function LandingHero({ countriesCount, gameState, onStartClick }) {
 
         ctx.strokeStyle = "rgba(255,210,120,0.5)";
         ctx.lineWidth = 1;
-
         ctx.beginPath();
         ctx.moveTo(lx, baseY);
         ctx.lineTo(lx, baseY - 18);
@@ -301,13 +360,207 @@ function LandingHero({ countriesCount, gameState, onStartClick }) {
           <span>Infrastructure <b>+future growth</b></span>
           <span>Environment <b>+stability</b></span>
           <span>Military <em>high risk</em></span>
-          <span>Goal: reach 180 dev + 90 happiness</span>
+          <span>Campaign goal: balanced growth before turn 12</span>
           <span>Education <b>+development</b></span>
           <span>Healthcare <b>+happiness</b></span>
-          <span>Industry <em>-happiness risk</em></span>
         </div>
       </div>
     </section>
+  );
+}
+
+function EventModal({ event, onResolve }) {
+  const isGood = event.budgetGain !== undefined;
+  const accent = isGood ? "#5fe0b0" : "#f59e0b";
+
+  const chips = isGood
+    ? [
+        `Dev +${event.devGain}`,
+        `Hap +${event.hapGain}`,
+        `+$${(event.budgetGain / 1000000).toFixed(0)}M`,
+      ]
+    : [
+        `Dev ${event.devHit}`,
+        `Hap ${event.hapHit}`,
+        `-$${Math.abs(event.budgetHit / 1000000).toFixed(0)}M`,
+      ];
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 500,
+        background: "rgba(4,8,20,0.88)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: "inherit",
+      }}
+    >
+      <div
+        style={{
+          background: "rgba(7,18,34,0.98)",
+          border: `1.5px solid ${accent}`,
+          borderRadius: 20,
+          padding: "34px 38px",
+          maxWidth: 480,
+          width: "90%",
+          textAlign: "center",
+          boxShadow: `0 0 70px ${isGood ? "rgba(95,224,176,0.18)" : "rgba(245,158,11,0.18)"}`,
+        }}
+      >
+        <div style={{ fontSize: 48, marginBottom: 10 }}>{event.icon}</div>
+
+        <div
+          style={{
+            fontSize: 11,
+            letterSpacing: "0.12em",
+            textTransform: "uppercase",
+            color: accent,
+            marginBottom: 8,
+            fontWeight: 800,
+          }}
+        >
+          {isGood ? "Opportunity Event" : "Crisis Event"}
+        </div>
+
+        <h3 style={{ margin: "0 0 10px", fontSize: 24, color: "#eef6ff" }}>
+          {event.title}
+        </h3>
+
+        <p
+          style={{
+            color: "#94a3b8",
+            fontSize: 14,
+            lineHeight: 1.6,
+            marginBottom: 20,
+          }}
+        >
+          {event.desc}
+        </p>
+
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            justifyContent: "center",
+            flexWrap: "wrap",
+            marginBottom: 24,
+          }}
+        >
+          {chips.map((chip) => (
+            <span
+              key={chip}
+              style={{
+                background: `${accent}18`,
+                border: `0.5px solid ${accent}55`,
+                borderRadius: 99,
+                padding: "4px 12px",
+                fontSize: 13,
+                color: accent,
+              }}
+            >
+              {chip}
+            </span>
+          ))}
+        </div>
+
+        {!isGood ? (
+          <>
+            <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.5, marginBottom: 18 }}>
+              Choose how to react. Responding reduces the damage, but costs extra money.
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button
+                onClick={() => onResolve("respond")}
+                style={{
+                  background: "linear-gradient(135deg,#fbbf24,#f59e0b)",
+                  color: "#04111f",
+                  border: "none",
+                  borderRadius: 12,
+                  padding: "12px 18px",
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Respond
+                <br />
+                <small style={{ fontWeight: 600 }}>less damage, extra cost</small>
+              </button>
+
+              <button
+                onClick={() => onResolve("ignore")}
+                style={{
+                  background: "rgba(7,18,34,0.82)",
+                  color: "#eaf7ff",
+                  border: "1px solid rgba(239,68,68,0.35)",
+                  borderRadius: 12,
+                  padding: "12px 18px",
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Ignore
+                <br />
+                <small style={{ fontWeight: 600 }}>full damage, no cost</small>
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.5, marginBottom: 18 }}>
+              Accept the opportunity normally or spend money to boost its impact.
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <button
+                onClick={() => onResolve("boost")}
+                style={{
+                  background: "linear-gradient(135deg,#5fe0b0,#38bdf8)",
+                  color: "#04111f",
+                  border: "none",
+                  borderRadius: 12,
+                  padding: "12px 18px",
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Boost it
+                <br />
+                <small style={{ fontWeight: 600 }}>bigger gain, costs money</small>
+              </button>
+
+              <button
+                onClick={() => onResolve("accept")}
+                style={{
+                  background: "rgba(7,18,34,0.82)",
+                  color: "#eaf7ff",
+                  border: "1px solid rgba(95,224,176,0.35)",
+                  borderRadius: 12,
+                  padding: "12px 18px",
+                  fontSize: 14,
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                Accept
+                <br />
+                <small style={{ fontWeight: 600 }}>normal bonus</small>
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -319,6 +572,10 @@ export default function App() {
   const [message, setMessage] = useState("Choose a country on the map to start the simulation.");
   const [loading, setLoading] = useState(false);
   const [builderEvent, setBuilderEvent] = useState(null);
+  const [campaign, setCampaign] = useState(null);
+  const [gameResult, setGameResult] = useState(null);
+  const [activeEvent, setActiveEvent] = useState(null);
+  const [pendingState, setPendingState] = useState(null);
 
   useEffect(() => {
     loadCountries();
@@ -345,6 +602,10 @@ export default function App() {
     setGameState(null);
     setInvestments([]);
     setBuilderEvent(null);
+    setCampaign(null);
+    setGameResult(null);
+    setActiveEvent(null);
+    setPendingState(null);
     setMessage(`${country.country_name} selected. Start the simulation when you are ready.`);
   }
 
@@ -359,12 +620,8 @@ export default function App() {
     try {
       const response = await fetch(`${API_BASE}/start-game`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          country_id: selectedCountry.country_id
-        }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ country_id: selectedCountry.country_id }),
       });
 
       const data = await response.json();
@@ -383,12 +640,150 @@ export default function App() {
 
       const state = await stateResponse.json();
 
+      const targetDevelopment = Number(state.development_score) + TARGET_DEV_GAIN;
+      const targetHappiness = Math.min(95, Number(state.happiness) + TARGET_HAPPINESS_GAIN);
+      const minimumFinalBudget = Number(state.budget) * MIN_FINAL_BUDGET_RATIO;
+
       setGameState(state);
       setInvestments([]);
       setBuilderEvent(null);
-      setMessage(`Simulation started with ${state.country_name}. Plan carefully: you only have ${MAX_TURNS} turns.`);
+      setGameResult(null);
+      setActiveEvent(null);
+      setPendingState(null);
+
+      setCampaign({
+        startingDevelopment: Number(state.development_score),
+        startingHappiness: Number(state.happiness),
+        startingBudget: Number(state.budget),
+        targetDevelopment,
+        targetHappiness,
+        minimumFinalBudget,
+      });
+
+      setMessage(
+        `Simulation started with ${state.country_name}. Reach the campaign targets before turn ${MAX_TURNS}.`
+      );
     } catch {
       setMessage("Backend connection failed. Make sure FastAPI is running on port 8000.");
+    }
+
+    setLoading(false);
+  }
+
+  function getEventForTurn(turnNumber) {
+    const crisis = CRISIS_EVENTS.find((event) => event.turn === turnNumber);
+
+    if (crisis) {
+      return crisis;
+    }
+
+    const good = GOOD_EVENTS.find((event) => event.turn === turnNumber);
+
+    if (good) {
+      return good;
+    }
+
+    return null;
+  }
+
+  function applyEventToState(state, event, choice) {
+    const isGood = event.budgetGain !== undefined;
+
+    if (isGood) {
+      const boosted = choice === "boost";
+
+      return {
+        ...state,
+        development_score: Math.max(
+          0,
+          Number(state.development_score) + (boosted ? event.devGain * 1.5 : event.devGain)
+        ),
+        happiness: Math.min(
+          100,
+          Math.max(0, Number(state.happiness) + (boosted ? event.hapGain * 1.4 : event.hapGain))
+        ),
+        budget: Math.max(
+          0,
+          Number(state.budget) + event.budgetGain - (boosted ? event.boostCost : 0)
+        ),
+      };
+    }
+
+    const responded = choice === "respond";
+
+    return {
+      ...state,
+      development_score: Math.max(
+        0,
+        Number(state.development_score) + (responded ? event.devHit * 0.45 : event.devHit)
+      ),
+      happiness: Math.min(
+        100,
+        Math.max(0, Number(state.happiness) + (responded ? event.hapHit * 0.45 : event.hapHit))
+      ),
+      budget: Math.max(
+        0,
+        Number(state.budget) + event.budgetHit - (responded ? event.responseCost : 0)
+      ),
+    };
+  }
+
+  async function persistEventState(nextState) {
+    const response = await fetch(`${API_BASE}/apply-event-state`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        player_country_id: nextState.player_country_id,
+        budget: Number(nextState.budget),
+        happiness: Number(nextState.happiness),
+        development_score: Number(nextState.development_score),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Event update failed");
+    }
+
+    return response.json();
+  }
+
+  async function resolveEvent(choice) {
+    if (!activeEvent || !pendingState) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const nextState = applyEventToState(pendingState, activeEvent, choice);
+      const savedState = await persistEventState(nextState);
+      const isGood = activeEvent.budgetGain !== undefined;
+
+      setGameState(savedState);
+      setPendingState(null);
+      setActiveEvent(null);
+
+      if (isGood) {
+        setMessage(
+          choice === "boost"
+            ? `${activeEvent.title}: you boosted the opportunity. Bigger gains, but it cost money.`
+            : `${activeEvent.title}: you accepted the opportunity.`
+        );
+      } else {
+        setMessage(
+          choice === "respond"
+            ? `${activeEvent.title}: you responded quickly and reduced the damage.`
+            : `${activeEvent.title}: you ignored the crisis and took the full impact.`
+        );
+      }
+
+      const result = evaluateCampaign(savedState);
+
+      if (result.finished) {
+        setGameResult(result);
+      }
+    } catch {
+      setMessage("Could not save the event result to the backend.");
     }
 
     setLoading(false);
@@ -400,8 +795,19 @@ export default function App() {
       return;
     }
 
+    if (activeEvent) {
+      setMessage("Choose how to resolve the current event first.");
+      return;
+    }
+
+    if (gameResult) {
+      setMessage("This campaign is already finished. Select a country to start a new one.");
+      return;
+    }
+
     if (Number(gameState.turn_number) >= MAX_TURNS) {
-      setMessage("The simulation has reached the final year. Start a new country to play again.");
+      const result = evaluateCampaign(gameState, true);
+      setGameResult(result);
       return;
     }
 
@@ -410,9 +816,7 @@ export default function App() {
     try {
       const response = await fetch(`${API_BASE}/invest`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           player_country_id: gameState.player_country_id,
           sector_type: sector.name,
@@ -433,7 +837,7 @@ export default function App() {
 
       setBuilderEvent({
         sector: sector.name,
-        time: Date.now()
+        time: Date.now(),
       });
 
       const historyResponse = await fetch(`${API_BASE}/investments/${gameState.player_country_id}`);
@@ -441,6 +845,21 @@ export default function App() {
       if (historyResponse.ok) {
         const historyData = await historyResponse.json();
         setInvestments(Array.isArray(historyData) ? historyData : []);
+      }
+
+      const newTurn = Number(data.turn_number);
+      const event = getEventForTurn(newTurn);
+
+      if (event) {
+        setPendingState(data);
+        setActiveEvent(event);
+        setMessage(`Turn ${newTurn}: ${event.icon} ${event.title}. Choose how to respond.`);
+      } else {
+        const result = evaluateCampaign(data);
+
+        if (result.finished) {
+          setGameResult(result);
+        }
       }
     } catch {
       setMessage("Could not send investment request.");
@@ -465,36 +884,91 @@ export default function App() {
     return Number(value).toFixed(1);
   }
 
+  function evaluateCampaign(state, forceEnd = false) {
+    if (!campaign) {
+      return { finished: false, win: false, title: "", description: "" };
+    }
+
+    const development = Number(state.development_score);
+    const happiness = Number(state.happiness);
+    const budget = Number(state.budget);
+    const turn = Number(state.turn_number);
+
+    const reachedDevelopment = development >= campaign.targetDevelopment;
+    const reachedHappiness = happiness >= campaign.targetHappiness;
+    const protectedBudget = budget >= campaign.minimumFinalBudget;
+
+    const win = reachedDevelopment && reachedHappiness && protectedBudget;
+
+    if (win) {
+      return {
+        finished: true,
+        win: true,
+        title: "You Win",
+        description:
+          "Your country reached the development and happiness targets while keeping enough budget. The strategy was balanced and sustainable.",
+      };
+    }
+
+    if (forceEnd || turn >= MAX_TURNS) {
+      let reason = "The campaign reached the final turn without meeting all targets.";
+
+      if (!reachedDevelopment && !reachedHappiness) {
+        reason = "Development and happiness both stayed below the required targets.";
+      } else if (!reachedDevelopment) {
+        reason = "Development did not grow enough before the final turn.";
+      } else if (!reachedHappiness) {
+        reason = "Happiness stayed too low. The country developed, but citizens were not satisfied.";
+      } else if (!protectedBudget) {
+        reason = "The targets were reached, but the final budget was too low to be sustainable.";
+      }
+
+      return {
+        finished: true,
+        win: false,
+        title: "You Lose",
+        description: reason,
+      };
+    }
+
+    return { finished: false, win: false, title: "", description: "" };
+  }
+
   function getProgress() {
-    if (!gameState) {
+    if (!gameState || !campaign) {
       return 0;
     }
 
-    const devPart = Math.min(Number(gameState.development_score) / TARGET_DEV, 1) * 55;
-    const happyPart = Math.min(Number(gameState.happiness) / TARGET_HAPPINESS, 1) * 35;
-    const timeBonus = Math.max(0, (MAX_TURNS - Number(gameState.turn_number)) / MAX_TURNS) * 10;
+    const devProgress =
+      (Number(gameState.development_score) - campaign.startingDevelopment) /
+      Math.max(1, campaign.targetDevelopment - campaign.startingDevelopment);
 
-    return Math.round(devPart + happyPart + timeBonus);
+    const happyProgress =
+      (Number(gameState.happiness) - campaign.startingHappiness) /
+      Math.max(1, campaign.targetHappiness - campaign.startingHappiness);
+
+    const budgetProgress = Number(gameState.budget) >= campaign.minimumFinalBudget ? 1 : 0.3;
+
+    const total =
+      Math.min(devProgress, 1) * 50 +
+      Math.min(happyProgress, 1) * 35 +
+      budgetProgress * 15;
+
+    return Math.max(0, Math.min(100, Math.round(total)));
   }
 
   function getMissionStatus() {
-    if (!gameState) {
+    if (!gameState || !campaign) {
       return "Select a country and build a development strategy.";
     }
 
-    const won =
-      Number(gameState.development_score) >= TARGET_DEV &&
-      Number(gameState.happiness) >= TARGET_HAPPINESS;
-
-    if (won) {
-      return "Mission success: the country reached the target development and happiness levels.";
+    if (gameResult) {
+      return gameResult.win
+        ? "Campaign completed successfully."
+        : "Campaign failed. Review your strategy and try again.";
     }
 
-    if (Number(gameState.turn_number) >= MAX_TURNS) {
-      return "Mission ended: final turn reached. Check whether your strategy was enough.";
-    }
-
-    return `Reach ${TARGET_DEV}+ development and ${TARGET_HAPPINESS}+ happiness before turn ${MAX_TURNS}.`;
+    return `Reach ${campaign.targetDevelopment.toFixed(1)} development and ${campaign.targetHappiness.toFixed(1)} happiness before turn ${MAX_TURNS}.`;
   }
 
   function getYearsLeft() {
@@ -503,6 +977,19 @@ export default function App() {
     }
 
     return Math.max(0, MAX_TURNS - Number(gameState.turn_number));
+  }
+
+  function resetCampaign() {
+    setSelectedCountry(null);
+    setGameState(null);
+    setInvestments([]);
+    setBuilderEvent(null);
+    setCampaign(null);
+    setGameResult(null);
+    setActiveEvent(null);
+    setPendingState(null);
+    setMessage("Choose a country on the map to start a new simulation.");
+    document.querySelector(".mapSection")?.scrollIntoView({ behavior: "smooth" });
   }
 
   return (
@@ -521,35 +1008,40 @@ export default function App() {
         <section className="panel missionPanel widePanel">
           <div className="missionTop">
             <div>
-              <p className="missionLabel">Main Objective</p>
+              <p className="missionLabel">Campaign Objective</p>
               <h2>{getMissionStatus()}</h2>
               <p>
-                Strategy matters: industry grows fast but can hurt happiness, while healthcare,
-                education, infrastructure, and environment help balance the country. The best
-                path is not always the most aggressive one.
+                The campaign is limited to 12 turns. Development alone is not enough:
+                the country also needs public happiness and a sustainable final budget.
+                Events are occasional but can change the outcome.
               </p>
             </div>
 
             <div className="missionScore">
               <strong>{getProgress()}%</strong>
-              <span>Mission Progress</span>
+              <span>Campaign Progress</span>
             </div>
           </div>
 
           <div className="missionStats">
             <div>
               <span>Target Development</span>
-              <strong>{TARGET_DEV}+</strong>
+              <strong>{campaign ? campaign.targetDevelopment.toFixed(1) : "—"}</strong>
             </div>
 
             <div>
               <span>Target Happiness</span>
-              <strong>{TARGET_HAPPINESS}+</strong>
+              <strong>{campaign ? campaign.targetHappiness.toFixed(1) : "—"}</strong>
             </div>
 
             <div>
               <span>Years Left</span>
               <strong>{getYearsLeft()}</strong>
+            </div>
+
+            <div>
+              <span>Minimum Final Budget</span>
+              <strong>{campaign ? fmtMoney(campaign.minimumFinalBudget) : "—"}</strong>
             </div>
           </div>
 
@@ -637,6 +1129,7 @@ export default function App() {
             <BuilderGame
               countryName={gameState.country_name}
               latestInvestment={builderEvent}
+              turnNumber={gameState.turn_number}
             />
           </section>
         )}
@@ -674,7 +1167,12 @@ export default function App() {
 
                     <button
                       onClick={() => makeInvestment(sector)}
-                      disabled={loading || Number(gameState.turn_number) >= MAX_TURNS}
+                      disabled={
+                        loading ||
+                        Boolean(activeEvent) ||
+                        Number(gameState.turn_number) >= MAX_TURNS ||
+                        Boolean(gameResult)
+                      }
                     >
                       Invest
                     </button>
@@ -690,7 +1188,7 @@ export default function App() {
             <div className="panelHeader">
               <div>
                 <h2>Investment History</h2>
-                <p>Previous decisions in this simulation.</p>
+                <p>Previous investment decisions in this campaign.</p>
               </div>
             </div>
 
@@ -716,7 +1214,23 @@ export default function App() {
             )}
           </section>
         )}
+
+        {gameResult && (
+          <section className={`panel resultPanel widePanel ${gameResult.win ? "winPanel" : "losePanel"}`}>
+            <div>
+              <p className="missionLabel">Campaign Result</p>
+              <h2>{gameResult.title}</h2>
+              <p>{gameResult.description}</p>
+            </div>
+
+            <button className="primaryButton" onClick={resetCampaign}>
+              Start New Campaign
+            </button>
+          </section>
+        )}
       </main>
+
+      {activeEvent && <EventModal event={activeEvent} onResolve={resolveEvent} />}
     </div>
   );
 }
