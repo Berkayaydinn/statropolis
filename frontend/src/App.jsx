@@ -3,13 +3,18 @@ import "./App.css";
 import BuilderGame from "./BuilderGame.jsx";
 import WorldMap from "./WorldMap.jsx";
 
+// I keep the backend URL in one place so API calls are easier to update later.
 const API_BASE = "http://127.0.0.1:8000";
 
+// These constants control the main campaign rules.
+// Keeping them here makes the game balance easier to understand and adjust.
 const MAX_TURNS = 12;
 const TARGET_DEV_GAIN = 45;
 const TARGET_HAPPINESS_GAIN = 5;
 const MIN_FINAL_BUDGET_RATIO = 0.2;
 
+// These countries are only used if the backend is not connected.
+// This lets the UI still show something during development.
 const fallbackCountries = [
   { country_id: 1, country_name: "Turkey" },
   { country_id: 2, country_name: "Germany" },
@@ -18,6 +23,8 @@ const fallbackCountries = [
   { country_id: 5, country_name: "South Africa" },
 ];
 
+// This array defines the investment options shown on the frontend.
+// The backend also validates sector names, so this is mainly for the UI and game display.
 const sectors = [
   {
     name: "Education",
@@ -75,6 +82,8 @@ const sectors = [
   },
 ];
 
+// These are negative campaign events.
+// I use fixed turns so the demo is predictable and easier to explain.
 const CRISIS_EVENTS = [
   {
     id: "drought",
@@ -111,6 +120,8 @@ const CRISIS_EVENTS = [
   },
 ];
 
+// These are positive campaign events.
+// They give the player opportunities, but boosting them may cost money.
 const GOOD_EVENTS = [
   {
     id: "tourism",
@@ -140,6 +151,8 @@ function LandingHero({ countriesCount, gameState, username, onStartClick }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
+    // This canvas creates the animated city background on the landing screen.
+    // It is visual only and does not affect the database or game logic.
     const canvas = canvasRef.current;
     const root = canvas.parentElement;
     const ctx = canvas.getContext("2d");
@@ -373,6 +386,7 @@ function EventModal({ event, onResolve }) {
   const isGood = event.budgetGain !== undefined;
   const accent = isGood ? "#5fe0b0" : "#f59e0b";
 
+  // I show the event impact as small chips so the player can quickly understand the effect.
   const chips = isGood
     ? [
         `Dev +${event.devGain}`,
@@ -618,6 +632,9 @@ function ResultModal({ result, onRestart }) {
 }
 
 export default function App() {
+  // These states control the main frontend flow.
+  // Some values come from the backend, such as countries, gameState, investments,
+  // and leaderboard. Other values are only used for UI state.
   const [countries, setCountries] = useState([]);
   const [selectedCountry, setSelectedCountry] = useState(null);
   const [gameState, setGameState] = useState(null);
@@ -634,6 +651,8 @@ export default function App() {
   const [usernameInput, setUsernameInput] = useState("");
 
   useEffect(() => {
+    // When the page first loads, I fetch countries and leaderboard data from the backend.
+    // Countries are needed for the map, and leaderboard is shown after campaigns exist.
     loadCountries();
     loadLeaderboard();
   }, []);
@@ -646,11 +665,15 @@ export default function App() {
       return;
     }
 
+    // I store the username in frontend state first.
+    // The actual users table row is created later when the game starts.
     setUsername(cleaned);
     setMessage(`Welcome, ${cleaned}. Choose a country to start your campaign.`);
   }
 
   function changePlayer() {
+    // This resets the frontend back to the player profile flow.
+    // It does not delete database records by itself; it only clears the current UI state.
     setUsername("");
     setUsernameInput("");
     setSelectedCountry(null);
@@ -666,6 +689,8 @@ export default function App() {
 
   async function loadCountries() {
     try {
+      // This calls GET /countries.
+      // The backend returns country data from the PostgreSQL countries table.
       const response = await fetch(`${API_BASE}/countries`);
 
       if (!response.ok) {
@@ -675,6 +700,7 @@ export default function App() {
       const data = await response.json();
       setCountries(Array.isArray(data) && data.length > 0 ? data : fallbackCountries);
     } catch {
+      // If the backend is not running, I use fallback countries so the UI does not fully break.
       setCountries(fallbackCountries);
       setMessage("Backend is not connected yet. The map is running with demo countries.");
     }
@@ -682,6 +708,8 @@ export default function App() {
 
   async function loadLeaderboard() {
     try {
+      // This calls the complex leaderboard query on the backend.
+      // It ranks active player_country rows by development score.
       const response = await fetch(`${API_BASE}/analytics/leaderboard`);
 
       if (!response.ok) {
@@ -700,6 +728,8 @@ export default function App() {
     setLoading(true);
 
     try {
+      // This calls DELETE /analytics/leaderboard.
+      // The backend clears investments and player_country rows, which removes leaderboard entries.
       const response = await fetch(`${API_BASE}/analytics/leaderboard`, {
         method: "DELETE",
       });
@@ -720,6 +750,8 @@ export default function App() {
   }
 
   function handleCountrySelect(country) {
+    // When the player selects a country, I reset any old game state.
+    // This keeps the new campaign clean before calling /start-game.
     setSelectedCountry(country);
     setGameState(null);
     setInvestments([]);
@@ -745,6 +777,9 @@ export default function App() {
     setLoading(true);
 
     try {
+      // This POST request creates the user if needed and creates a player_country row.
+      // The backend calculates the starting budget, happiness, development score,
+      // and income per turn from the selected country's database values.
       const response = await fetch(`${API_BASE}/start-game`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -759,6 +794,7 @@ export default function App() {
         return;
       }
 
+      // After starting the game, I fetch the full game state with username and country name.
       const stateResponse = await fetch(`${API_BASE}/game-state/${data.player_country_id}`);
 
       if (!stateResponse.ok) {
@@ -767,6 +803,8 @@ export default function App() {
 
       const state = await stateResponse.json();
 
+      // These targets are calculated on the frontend for the campaign objective.
+      // They are based on the starting state returned by the backend.
       const targetDevelopment = Number(state.development_score) + TARGET_DEV_GAIN;
       const targetHappiness = Math.min(95, Number(state.happiness) + TARGET_HAPPINESS_GAIN);
       const minimumFinalBudget = Number(state.budget) * MIN_FINAL_BUDGET_RATIO;
@@ -800,6 +838,8 @@ export default function App() {
   }
 
   function getEventForTurn(turnNumber) {
+    // I check if a fixed crisis or good event should appear on this turn.
+    // This makes the campaign more interactive while still being predictable for the demo.
     const crisis = CRISIS_EVENTS.find((event) => event.turn === turnNumber);
 
     if (crisis) {
@@ -816,6 +856,8 @@ export default function App() {
   }
 
   function applyEventToState(state, event, choice) {
+    // This function calculates the new state after the player responds to an event.
+    // It only calculates the values locally; persistEventState saves them to the database.
     const isGood = event.budgetGain !== undefined;
 
     if (isGood) {
@@ -858,6 +900,8 @@ export default function App() {
   }
 
   async function persistEventState(nextState) {
+    // Events are not inserted into investments because they are not normal investments.
+    // Instead, I update the active player_country row through /apply-event-state.
     const response = await fetch(`${API_BASE}/apply-event-state`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -884,7 +928,10 @@ export default function App() {
     setLoading(true);
 
     try {
+      // First I calculate the changed values from the selected event response.
       const nextState = applyEventToState(pendingState, activeEvent, choice);
+
+      // Then I save the changed state to PostgreSQL through the backend.
       const savedState = await persistEventState(nextState);
       const isGood = activeEvent.budgetGain !== undefined;
 
@@ -945,6 +992,8 @@ export default function App() {
     setLoading(true);
 
     try {
+      // This sends the investment decision to the backend.
+      // The backend inserts an investment row and updates the player_country row.
       const response = await fetch(`${API_BASE}/invest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -961,6 +1010,8 @@ export default function App() {
         const detail = data.detail || "Investment failed.";
         setMessage(detail);
 
+        // If the backend says the budget is not enough, the campaign becomes a loss.
+        // This connects the database/game validation to the visible game result.
         if (detail.toLowerCase().includes("not enough budget")) {
           setGameResult({
             finished: true,
@@ -978,11 +1029,13 @@ export default function App() {
       setGameState(data);
       setMessage(`${sector.name} investment completed. The city also changed visually.`);
 
+      // This triggers the city builder animation for the selected investment sector.
       setBuilderEvent({
         sector: sector.name,
         time: Date.now(),
       });
 
+      // After investing, I refresh the investment history from the database.
       const historyResponse = await fetch(`${API_BASE}/investments/${gameState.player_country_id}`);
 
       if (historyResponse.ok) {
@@ -992,6 +1045,7 @@ export default function App() {
 
       loadLeaderboard();
 
+      // Some turns trigger a crisis or opportunity event after the investment.
       const newTurn = Number(data.turn_number);
       const event = getEventForTurn(newTurn);
 
@@ -1014,6 +1068,7 @@ export default function App() {
   }
 
   function fmtMoney(value) {
+    // This helper formats database numeric values as readable money text.
     if (value === null || value === undefined) {
       return "-";
     }
@@ -1022,6 +1077,7 @@ export default function App() {
   }
 
   function fmtNumber(value) {
+    // This helper formats score-style values with one decimal point.
     if (value === null || value === undefined || Number.isNaN(Number(value))) {
       return "-";
     }
@@ -1030,6 +1086,8 @@ export default function App() {
   }
 
   function evaluateCampaign(state, forceEnd = false) {
+    // This function checks whether the campaign is won, lost, or still running.
+    // It uses the campaign targets created when the game started.
     if (!campaign) {
       return { finished: false, win: false, title: "", description: "" };
     }
@@ -1043,6 +1101,7 @@ export default function App() {
     const reachedHappiness = happiness >= campaign.targetHappiness;
     const protectedBudget = budget >= campaign.minimumFinalBudget;
 
+    // If the budget reaches zero, the country cannot continue the campaign.
     if (budget <= 0) {
       return {
         finished: true,
@@ -1090,6 +1149,8 @@ export default function App() {
   }
 
   function getProgress() {
+    // This calculates a simple campaign progress percentage for the UI.
+    // Development has the biggest weight, happiness is second, and budget sustainability is also included.
     if (!gameState || !campaign) {
       return 0;
     }
@@ -1113,6 +1174,7 @@ export default function App() {
   }
 
   function getMissionStatus() {
+    // This creates the mission text shown near the top of the page.
     if (!gameState || !campaign) {
       return "Select a country and build a development strategy.";
     }
@@ -1127,6 +1189,7 @@ export default function App() {
   }
 
   function getYearsLeft() {
+    // Turns represent years in this simulation.
     if (!gameState) {
       return MAX_TURNS;
     }
@@ -1135,6 +1198,8 @@ export default function App() {
   }
 
   function resetCampaign() {
+    // This resets only the current frontend campaign view.
+    // It does not delete the user table. A new campaign can be started after selecting a country again.
     setSelectedCountry(null);
     setGameState(null);
     setInvestments([]);
