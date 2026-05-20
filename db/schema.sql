@@ -21,7 +21,7 @@ CREATE TABLE countries (
     country_id SERIAL PRIMARY KEY,
     country_name VARCHAR(100) UNIQUE NOT NULL,
     population BIGINT NOT NULL CHECK (population >= 0),
-    gdp NUMERIC(15,2) NOT NULL CHECK (gdp >= 0),
+    gdp NUMERIC(20,2) NOT NULL CHECK (gdp >= 0),
     gdp_per_capita NUMERIC(12,2) NOT NULL CHECK (gdp_per_capita >= 0),
     life_expectancy NUMERIC(5,2) CHECK (life_expectancy >= 0),
     literacy_rate NUMERIC(5,2) CHECK (literacy_rate BETWEEN 0 AND 100),

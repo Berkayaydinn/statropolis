@@ -299,3 +299,102 @@ def sector_summary():
     """
 
     return fetch_all(query)
+
+
+# ──────────────────────────────────────────────────────────────
+# COMPLEX QUERY ENDPOINTS
+# Added to satisfy advanced SQL requirements (ISE 305).
+# These endpoints do not change existing game logic.
+# ──────────────────────────────────────────────────────────────
+
+@app.get("/analytics/leaderboard")
+def leaderboard():
+    # Complex Query 1: 3-table JOIN + RANK window function.
+    # Returns all players ranked by development score.
+    # Used on the Leaderboard page.
+    query = """
+        SELECT
+            u.username,
+            c.country_name,
+            pc.development_score,
+            pc.happiness,
+            pc.budget,
+            pc.turn_number,
+            RANK() OVER (ORDER BY pc.development_score DESC) AS rank
+        FROM player_country pc
+        JOIN users     u ON pc.user_id    = u.user_id
+        JOIN countries c ON pc.country_id = c.country_id
+        ORDER BY pc.development_score DESC;
+    """
+    return fetch_all(query)
+
+
+@app.get("/analytics/neglected-sectors")
+def neglected_sectors():
+    # Complex Query 3: 3-table JOIN + LEFT OUTER JOIN + IS NULL.
+    # Finds players who have never invested in Education.
+    # Used by the AI Advisor to generate recommendations.
+    query = """
+        SELECT
+            u.username,
+            c.country_name,
+            pc.development_score,
+            pc.turn_number
+        FROM player_country pc
+        JOIN users     u ON pc.user_id    = u.user_id
+        JOIN countries c ON pc.country_id = c.country_id
+        LEFT JOIN investments i
+               ON i.player_country_id = pc.player_country_id
+              AND i.sector_type = 'Education'
+        WHERE i.investment_id IS NULL
+        ORDER BY pc.development_score DESC;
+    """
+    return fetch_all(query)
+
+
+@app.get("/analytics/country-stats")
+def country_stats():
+    # Complex Query 4: LEFT JOIN + GROUP BY + HAVING + AVG/COUNT/MAX.
+    # Ranks countries by average player development score.
+    # Used on the country selection screen.
+    query = """
+        SELECT
+            c.country_name,
+            COUNT(pc.player_country_id)  AS total_players,
+            ROUND(AVG(pc.development_score), 2) AS avg_development,
+            ROUND(AVG(pc.happiness), 2)          AS avg_happiness,
+            MAX(pc.development_score)            AS highest_score
+        FROM countries c
+        LEFT JOIN player_country pc ON c.country_id = pc.country_id
+        GROUP BY c.country_id, c.country_name
+        HAVING COUNT(pc.player_country_id) > 0
+        ORDER BY avg_development DESC;
+    """
+    return fetch_all(query)
+
+
+@app.get("/analytics/above-average")
+def above_average():
+    # Complex Query 5: 3-table JOIN + nested subquery used twice.
+    # Finds players whose development score exceeds the global average.
+    # Also calculates each player's margin above that average.
+    # Used in the "Rising Nations" leaderboard section.
+    query = """
+        SELECT
+            u.username,
+            c.country_name,
+            pc.development_score,
+            pc.turn_number,
+            ROUND(
+                pc.development_score -
+                (SELECT AVG(development_score) FROM player_country),
+                2
+            ) AS score_above_avg
+        FROM player_country pc
+        JOIN users     u ON pc.user_id    = u.user_id
+        JOIN countries c ON pc.country_id = c.country_id
+        WHERE pc.development_score >
+              (SELECT AVG(development_score) FROM player_country)
+        ORDER BY pc.development_score DESC;
+    """
+    return fetch_all(query)

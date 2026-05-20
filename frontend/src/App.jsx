@@ -1,53 +1,324 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import "./App.css";
+import BuilderGame from "./BuilderGame.jsx";
+import WorldMap from "./WorldMap.jsx";
 
 const API_BASE = "http://127.0.0.1:8000";
+
+const TARGET_DEV = 180;
+const TARGET_HAPPINESS = 90;
+const MAX_TURNS = 20;
+
+const fallbackCountries = [
+  { country_id: 1, country_name: "Turkey" },
+  { country_id: 2, country_name: "Germany" },
+  { country_id: 3, country_name: "Brazil" },
+  { country_id: 4, country_name: "Japan" },
+  { country_id: 5, country_name: "South Africa" },
+];
 
 const sectors = [
   {
     name: "Education",
     icon: "🎓",
-    description: "Improves long-term development and slightly increases happiness.",
-    amount: 100000000
+    description: "Builds schools. Strong long-term development gain with a small happiness boost.",
+    amount: 100000000,
+    dev: "+4 Dev",
+    happiness: "+2 Hap",
+    risk: "Safe",
   },
   {
     name: "Healthcare",
     icon: "🏥",
-    description: "Strongly improves happiness and supports social development.",
-    amount: 100000000
+    description: "Builds hospitals. Best for protecting happiness and social stability.",
+    amount: 100000000,
+    dev: "+3 Dev",
+    happiness: "+4 Hap",
+    risk: "Safe",
   },
   {
     name: "Industry",
     icon: "🏭",
-    description: "Boosts development quickly but may slightly reduce happiness.",
-    amount: 150000000
+    description: "Builds factories. Fast development, but people may dislike pollution and pressure.",
+    amount: 150000000,
+    dev: "+6 Dev",
+    happiness: "-1 Hap",
+    risk: "Risky",
   },
   {
     name: "Infrastructure",
     icon: "🚆",
-    description: "Improves development and supports future growth.",
-    amount: 150000000
+    description: "Builds roads and transit. Balanced growth that supports future progress.",
+    amount: 150000000,
+    dev: "+5 Dev",
+    happiness: "+1 Hap",
+    risk: "Balanced",
   },
   {
     name: "Military",
     icon: "🛡️",
-    description: "Adds limited development but may reduce happiness.",
-    amount: 120000000
+    description: "Builds defense facilities. Gives limited development but can lower happiness.",
+    amount: 120000000,
+    dev: "+2 Dev",
+    happiness: "-3 Hap",
+    risk: "High Risk",
   },
   {
     name: "Environment",
     icon: "🌱",
-    description: "Improves happiness and supports balanced development.",
-    amount: 100000000
-  }
+    description: "Builds parks and green areas. Slower development but helps happiness.",
+    amount: 100000000,
+    dev: "+2 Dev",
+    happiness: "+3 Hap",
+    risk: "Stable",
+  },
 ];
 
-function App() {
+function LandingHero({ countriesCount, gameState, onStartClick }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const root = canvas.parentElement;
+    const ctx = canvas.getContext("2d");
+
+    const colors = ["#0d1b35", "#102040", "#0e1c38", "#0c1a30", "#111f3d"];
+    const buildings = [];
+    let frameId;
+    let t = 0;
+
+    function resize() {
+      canvas.width = root.offsetWidth;
+      canvas.height = root.offsetHeight;
+    }
+
+    function initBuildings() {
+      buildings.length = 0;
+
+      const width = canvas.width;
+      const height = canvas.height;
+      let x = -10;
+
+      while (x < width + 30) {
+        const buildingWidth = 22 + Math.random() * 38;
+        const buildingHeight = 60 + Math.random() * (height * 0.52);
+        const floors = Math.floor(buildingHeight / 18);
+        const windowCols = Math.max(1, Math.floor((buildingWidth - 10) / 14));
+        const windows = [];
+
+        for (let row = 0; row < floors; row++) {
+          for (let col = 0; col < windowCols; col++) {
+            windows.push(Math.random() > 0.45);
+          }
+        }
+
+        buildings.push({
+          x,
+          width: buildingWidth,
+          height: buildingHeight,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          floors,
+          windowCols,
+          windows,
+        });
+
+        x += buildingWidth + 3 + Math.random() * 6;
+      }
+    }
+
+    function draw() {
+      const width = canvas.width;
+      const height = canvas.height;
+      const baseY = height * 0.78;
+
+      ctx.clearRect(0, 0, width, height);
+
+      ctx.fillStyle = "#07101f";
+      ctx.fillRect(0, 0, width, height * 0.55);
+
+      ctx.fillStyle = "#0b1828";
+      ctx.fillRect(0, height * 0.55, width, height * 0.45);
+
+      for (let i = 0; i < 90; i++) {
+        const sx = ((42 * (i * 7 + 3)) % 1000) / 1000 * width;
+        const sy = ((42 * (i * 13 + 5)) % 1000) / 1000 * height * 0.45;
+        const alpha = 0.3 + 0.5 * Math.abs(Math.sin(t * 0.012 + i));
+
+        ctx.fillStyle = `rgba(200,220,255,${alpha.toFixed(2)})`;
+        ctx.beginPath();
+        ctx.arc(sx, sy, 0.8, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const horizon = ctx.createLinearGradient(0, height * 0.48, 0, height * 0.6);
+      horizon.addColorStop(0, "rgba(30,80,160,0.18)");
+      horizon.addColorStop(1, "rgba(10,20,50,0)");
+
+      ctx.fillStyle = horizon;
+      ctx.fillRect(0, height * 0.45, width, height * 0.18);
+
+      ctx.fillStyle = "#060d1a";
+      ctx.fillRect(0, baseY, width, height * 0.22);
+
+      ctx.fillStyle = "rgba(15,35,80,0.3)";
+      ctx.fillRect(0, height * 0.76, width, 4);
+
+      for (const building of buildings) {
+        const y = baseY - building.height;
+
+        ctx.fillStyle = building.color;
+        ctx.fillRect(building.x, y, building.width, building.height);
+
+        ctx.fillStyle = "rgba(100,160,255,0.08)";
+        ctx.fillRect(building.x, y, building.width, 2);
+
+        const padX = 5;
+        const padY = 8;
+        const winW = 6;
+        const winH = 7;
+        const gapX = 8;
+        const gapY = 11;
+
+        for (let row = 0; row < building.floors; row++) {
+          for (let col = 0; col < building.windowCols; col++) {
+            const index = row * building.windowCols + col;
+            const wx = building.x + padX + col * gapX;
+            const wy = y + padY + row * gapY;
+
+            if (wx + winW > building.x + building.width - 2) continue;
+            if (wy + winH > baseY - 2) continue;
+
+            const lightAlpha = 0.55 + 0.3 * Math.abs(Math.sin(t * 0.005 + index));
+
+            ctx.fillStyle = building.windows[index]
+              ? `rgba(200,232,255,${lightAlpha})`
+              : "#1a2d50";
+
+            ctx.fillRect(wx, wy, winW, winH);
+          }
+        }
+      }
+
+      for (let i = 0; i < width; i += 55) {
+        const lx = i + 10;
+
+        ctx.strokeStyle = "rgba(255,210,120,0.5)";
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.moveTo(lx, baseY);
+        ctx.lineTo(lx, baseY - 18);
+        ctx.lineTo(lx + 8, baseY - 18);
+        ctx.stroke();
+
+        ctx.fillStyle = "rgba(255,220,140,0.9)";
+        ctx.beginPath();
+        ctx.arc(lx + 8, baseY - 18, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      t++;
+      frameId = requestAnimationFrame(draw);
+    }
+
+    resize();
+    initBuildings();
+    draw();
+
+    function handleResize() {
+      resize();
+      initBuildings();
+    }
+
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  return (
+    <section className="landingHero">
+      <canvas ref={canvasRef} className="landingCanvas" />
+
+      <div className="landingOverlay">
+        <div className="landingTag">Global Strategy Simulation</div>
+
+        <h1 className="landingTitle">
+          Stat<span>ropolis</span>
+        </h1>
+
+        <p className="landingSub">
+          A data-driven country management simulation.
+          <br />
+          Real data. Real decisions. Real consequences.
+        </p>
+
+        <div className="landingButtons">
+          <button className="landingPrimary" onClick={onStartClick}>
+            Start managing ↗
+          </button>
+
+          <button
+            className="landingSecondary"
+            onClick={() => {
+              document.querySelector(".missionPanel")?.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            View mission
+          </button>
+        </div>
+
+        <div className="landingStats">
+          <div>
+            <span>Countries</span>
+            <strong className="cyanText">{countriesCount || 195}</strong>
+          </div>
+
+          <div>
+            <span>Active player</span>
+            <strong className="greenText">1</strong>
+          </div>
+
+          <div>
+            <span>Current dev.</span>
+            <strong>{gameState ? Number(gameState.development_score).toFixed(1) : "0.0"}</strong>
+          </div>
+
+          <div>
+            <span>Top country</span>
+            <strong className="cyanText">{gameState?.country_name || "—"}</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className="landingTicker">
+        <div className="landingTickerInner">
+          <span>Education <b>+development</b></span>
+          <span>Healthcare <b>+happiness</b></span>
+          <span>Industry <em>-happiness risk</em></span>
+          <span>Infrastructure <b>+future growth</b></span>
+          <span>Environment <b>+stability</b></span>
+          <span>Military <em>high risk</em></span>
+          <span>Goal: reach 180 dev + 90 happiness</span>
+          <span>Education <b>+development</b></span>
+          <span>Healthcare <b>+happiness</b></span>
+          <span>Industry <em>-happiness risk</em></span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function App() {
   const [countries, setCountries] = useState([]);
-  const [selectedCountryId, setSelectedCountryId] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState(null);
   const [gameState, setGameState] = useState(null);
   const [investments, setInvestments] = useState([]);
-  const [message, setMessage] = useState("Choose a country to start your first simulation.");
+  const [message, setMessage] = useState("Choose a country on the map to start the simulation.");
   const [loading, setLoading] = useState(false);
+  const [builderEvent, setBuilderEvent] = useState(null);
 
   useEffect(() => {
     loadCountries();
@@ -56,21 +327,30 @@ function App() {
   async function loadCountries() {
     try {
       const response = await fetch(`${API_BASE}/countries`);
-      const data = await response.json();
 
-      setCountries(data);
-
-      if (data.length > 0) {
-        setSelectedCountryId(data[0].country_id);
+      if (!response.ok) {
+        throw new Error("Countries request failed");
       }
-    } catch (error) {
-      setMessage("Could not load countries. Please check if the backend is running.");
+
+      const data = await response.json();
+      setCountries(Array.isArray(data) && data.length > 0 ? data : fallbackCountries);
+    } catch {
+      setCountries(fallbackCountries);
+      setMessage("Backend is not connected yet. The map is running with demo countries.");
     }
   }
 
+  function handleCountrySelect(country) {
+    setSelectedCountry(country);
+    setGameState(null);
+    setInvestments([]);
+    setBuilderEvent(null);
+    setMessage(`${country.country_name} selected. Start the simulation when you are ready.`);
+  }
+
   async function startGame() {
-    if (!selectedCountryId) {
-      setMessage("Please select a country first.");
+    if (!selectedCountry) {
+      setMessage("Click a country on the map first.");
       return;
     }
 
@@ -83,8 +363,8 @@ function App() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          country_id: Number(selectedCountryId)
-        })
+          country_id: selectedCountry.country_id
+        }),
       });
 
       const data = await response.json();
@@ -95,13 +375,19 @@ function App() {
         return;
       }
 
-      const fullStateResponse = await fetch(`${API_BASE}/game-state/${data.player_country_id}`);
-      const fullState = await fullStateResponse.json();
+      const stateResponse = await fetch(`${API_BASE}/game-state/${data.player_country_id}`);
 
-      setGameState(fullState);
+      if (!stateResponse.ok) {
+        throw new Error("Game state request failed");
+      }
+
+      const state = await stateResponse.json();
+
+      setGameState(state);
       setInvestments([]);
-      setMessage(`Simulation started with ${fullState.country_name}.`);
-    } catch (error) {
+      setBuilderEvent(null);
+      setMessage(`Simulation started with ${state.country_name}. Plan carefully: you only have ${MAX_TURNS} turns.`);
+    } catch {
       setMessage("Backend connection failed. Make sure FastAPI is running on port 8000.");
     }
 
@@ -110,7 +396,12 @@ function App() {
 
   async function makeInvestment(sector) {
     if (!gameState) {
-      setMessage("Start a game before making an investment.");
+      setMessage("Start a game before investing.");
+      return;
+    }
+
+    if (Number(gameState.turn_number) >= MAX_TURNS) {
+      setMessage("The simulation has reached the final year. Start a new country to play again.");
       return;
     }
 
@@ -125,8 +416,8 @@ function App() {
         body: JSON.stringify({
           player_country_id: gameState.player_country_id,
           sector_type: sector.name,
-          investment_amount: sector.amount
-        })
+          investment_amount: sector.amount,
+        }),
       });
 
       const data = await response.json();
@@ -138,19 +429,27 @@ function App() {
       }
 
       setGameState(data);
-      setMessage(`${sector.name} investment completed successfully.`);
+      setMessage(`${sector.name} investment completed. The city also changed visually.`);
+
+      setBuilderEvent({
+        sector: sector.name,
+        time: Date.now()
+      });
 
       const historyResponse = await fetch(`${API_BASE}/investments/${gameState.player_country_id}`);
-      const historyData = await historyResponse.json();
-      setInvestments(historyData);
-    } catch (error) {
-      setMessage("Could not send investment request to the backend.");
+
+      if (historyResponse.ok) {
+        const historyData = await historyResponse.json();
+        setInvestments(Array.isArray(historyData) ? historyData : []);
+      }
+    } catch {
+      setMessage("Could not send investment request.");
     }
 
     setLoading(false);
   }
 
-  function formatMoney(value) {
+  function fmtMoney(value) {
     if (value === null || value === undefined) {
       return "-";
     }
@@ -158,168 +457,266 @@ function App() {
     return `$${Number(value).toLocaleString()}`;
   }
 
-  function formatNumber(value) {
-    if (value === null || value === undefined) {
+  function fmtNumber(value) {
+    if (value === null || value === undefined || Number.isNaN(Number(value))) {
       return "-";
     }
 
     return Number(value).toFixed(1);
   }
 
-  function getAdvisorText() {
+  function getProgress() {
     if (!gameState) {
-      return "After you start a simulation, the advisor will suggest a useful investment direction.";
+      return 0;
     }
 
-    if (gameState.happiness < 70) {
-      return "Happiness is relatively low. Healthcare, Education, or Environment would be safer choices.";
+    const devPart = Math.min(Number(gameState.development_score) / TARGET_DEV, 1) * 55;
+    const happyPart = Math.min(Number(gameState.happiness) / TARGET_HAPPINESS, 1) * 35;
+    const timeBonus = Math.max(0, (MAX_TURNS - Number(gameState.turn_number)) / MAX_TURNS) * 10;
+
+    return Math.round(devPart + happyPart + timeBonus);
+  }
+
+  function getMissionStatus() {
+    if (!gameState) {
+      return "Select a country and build a development strategy.";
     }
 
-    if (gameState.development_score < 100) {
-      return "Development can still improve. Infrastructure or Industry may help the country grow faster.";
+    const won =
+      Number(gameState.development_score) >= TARGET_DEV &&
+      Number(gameState.happiness) >= TARGET_HAPPINESS;
+
+    if (won) {
+      return "Mission success: the country reached the target development and happiness levels.";
     }
 
-    return "The country is stable. A balanced investment strategy would work well for the next turns.";
+    if (Number(gameState.turn_number) >= MAX_TURNS) {
+      return "Mission ended: final turn reached. Check whether your strategy was enough.";
+    }
+
+    return `Reach ${TARGET_DEV}+ development and ${TARGET_HAPPINESS}+ happiness before turn ${MAX_TURNS}.`;
+  }
+
+  function getYearsLeft() {
+    if (!gameState) {
+      return MAX_TURNS;
+    }
+
+    return Math.max(0, MAX_TURNS - Number(gameState.turn_number));
   }
 
   return (
     <div className="page">
-      <div className="mapOverlay"></div>
+      <div className="mapOverlay" />
 
-      <header className="hero">
-        <div>
-          <p className="eyebrow">Data-driven country management game</p>
-          <h1>Statropolis</h1>
-          <p className="subtitle">
-            Choose a country, manage its yearly budget, and improve development through strategic investments.
-          </p>
-        </div>
-      </header>
+      <LandingHero
+        countriesCount={countries.length || 195}
+        gameState={gameState}
+        onStartClick={() => {
+          document.querySelector(".mapSection")?.scrollIntoView({ behavior: "smooth" });
+        }}
+      />
 
       <main className="layout">
-        <section className="panel setupPanel">
-          <div className="panelHeader">
+        <section className="panel missionPanel widePanel">
+          <div className="missionTop">
             <div>
-              <h2>Start Simulation</h2>
-              <p>Select a country and create the first playable game state.</p>
+              <p className="missionLabel">Main Objective</p>
+              <h2>{getMissionStatus()}</h2>
+              <p>
+                Strategy matters: industry grows fast but can hurt happiness, while healthcare,
+                education, infrastructure, and environment help balance the country. The best
+                path is not always the most aggressive one.
+              </p>
+            </div>
+
+            <div className="missionScore">
+              <strong>{getProgress()}%</strong>
+              <span>Mission Progress</span>
             </div>
           </div>
 
-          <label className="fieldLabel">Country</label>
-          <select
-            value={selectedCountryId}
-            onChange={(event) => setSelectedCountryId(event.target.value)}
-          >
-            {countries.map((country) => (
-              <option key={country.country_id} value={country.country_id}>
-                {country.country_name}
-              </option>
-            ))}
-          </select>
+          <div className="missionStats">
+            <div>
+              <span>Target Development</span>
+              <strong>{TARGET_DEV}+</strong>
+            </div>
 
-          <button className="primaryButton" onClick={startGame} disabled={loading}>
-            {loading ? "Processing..." : "Start Game"}
-          </button>
+            <div>
+              <span>Target Happiness</span>
+              <strong>{TARGET_HAPPINESS}+</strong>
+            </div>
+
+            <div>
+              <span>Years Left</span>
+              <strong>{getYearsLeft()}</strong>
+            </div>
+          </div>
+
+          <div className="goalBar">
+            <div style={{ width: `${getProgress()}%` }} />
+          </div>
+        </section>
+
+        <section className="panel widePanel mapSection">
+          <div className="panelHeader">
+            <div>
+              <h2>Select Your Country</h2>
+              <p>
+                {selectedCountry
+                  ? `Selected: ${selectedCountry.country_name}`
+                  : "Click a highlighted country on the map to choose your starting point."}
+              </p>
+            </div>
+
+            {selectedCountry && (
+              <button
+                className="primaryButton compactButton"
+                onClick={startGame}
+                disabled={loading}
+              >
+                {loading ? "Starting..." : `Start with ${selectedCountry.country_name}`}
+              </button>
+            )}
+          </div>
+
+          <WorldMap countries={countries} onSelect={handleCountrySelect} />
 
           <div className="messageBox">{message}</div>
         </section>
 
-        <section className="panel advisorPanel">
-          <h2>AI Advisor</h2>
-          <p>{getAdvisorText()}</p>
-        </section>
+        {gameState && (
+          <section className="panel countryPanel">
+            <div className="panelHeader">
+              <div>
+                <h2>{gameState.country_name}</h2>
+                <p>Current simulation state</p>
+              </div>
+
+              <span className="turnBadge">
+                Turn {gameState.turn_number} / {MAX_TURNS}
+              </span>
+            </div>
+
+            <div className="statsGrid">
+              <div className="statCard">
+                <span>Budget</span>
+                <strong>{fmtMoney(gameState.budget)}</strong>
+              </div>
+
+              <div className="statCard">
+                <span>Happiness</span>
+                <strong>{fmtNumber(gameState.happiness)}</strong>
+              </div>
+
+              <div className="statCard">
+                <span>Development</span>
+                <strong>{fmtNumber(gameState.development_score)}</strong>
+              </div>
+
+              <div className="statCard">
+                <span>Income / Turn</span>
+                <strong>{fmtMoney(gameState.income_per_turn)}</strong>
+              </div>
+            </div>
+          </section>
+        )}
 
         {gameState && (
-          <>
-            <section className="panel statsPanel">
-              <div className="panelHeader">
-                <div>
-                  <h2>{gameState.country_name}</h2>
-                  <p>Current simulation state</p>
-                </div>
-                <span className="turnBadge">Turn {gameState.turn_number}</span>
+          <section className="panel builderPanel widePanel">
+            <div className="panelHeader">
+              <div>
+                <h2>City Builder — {gameState.country_name}</h2>
+                <p>
+                  Your investments physically shape the city. Schools, hospitals, factories,
+                  transit, parks, bases, and roads appear as your strategy develops.
+                </p>
               </div>
+            </div>
 
-              <div className="statsGrid">
-                <div className="statCard">
-                  <span>Budget</span>
-                  <strong>{formatMoney(gameState.budget)}</strong>
-                </div>
+            <BuilderGame
+              countryName={gameState.country_name}
+              latestInvestment={builderEvent}
+            />
+          </section>
+        )}
 
-                <div className="statCard">
-                  <span>Happiness</span>
-                  <strong>{formatNumber(gameState.happiness)}</strong>
-                </div>
-
-                <div className="statCard">
-                  <span>Development</span>
-                  <strong>{formatNumber(gameState.development_score)}</strong>
-                </div>
-
-                <div className="statCard">
-                  <span>Income / Turn</span>
-                  <strong>{formatMoney(gameState.income_per_turn)}</strong>
-                </div>
+        {gameState && (
+          <section className="panel investmentPanel widePanel">
+            <div className="panelHeader">
+              <div>
+                <h2>Investment Strategy</h2>
+                <p>Each decision affects the next year and adds a related structure to the city.</p>
               </div>
-            </section>
+            </div>
 
-            <section className="panel investmentPanel">
-              <div className="panelHeader">
-                <div>
-                  <h2>Investment Options</h2>
-                  <p>Each decision changes the next year of the country.</p>
-                </div>
-              </div>
-
-              <div className="sectorGrid">
-                {sectors.map((sector) => (
-                  <div className="sectorCard" key={sector.name}>
+            <div className="sectorGrid">
+              {sectors.map((sector) => (
+                <div className="sectorCard" key={sector.name}>
+                  <div className="sectorTop">
                     <div className="sectorIcon">{sector.icon}</div>
-                    <h3>{sector.name}</h3>
-                    <p>{sector.description}</p>
-                    <div className="sectorFooter">
-                      <span>{formatMoney(sector.amount)}</span>
-                      <button onClick={() => makeInvestment(sector)} disabled={loading}>
-                        Invest
-                      </button>
+
+                    <span className={`riskBadge risk${sector.risk.replaceAll(" ", "")}`}>
+                      {sector.risk}
+                    </span>
+                  </div>
+
+                  <h3>{sector.name}</h3>
+                  <p>{sector.description}</p>
+
+                  <div className="impactRow">
+                    <span>{sector.dev}</span>
+                    <span>{sector.happiness}</span>
+                  </div>
+
+                  <div className="sectorFooter">
+                    <span>{fmtMoney(sector.amount)}</span>
+
+                    <button
+                      onClick={() => makeInvestment(sector)}
+                      disabled={loading || Number(gameState.turn_number) >= MAX_TURNS}
+                    >
+                      Invest
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {gameState && (
+          <section className="panel historyPanel widePanel">
+            <div className="panelHeader">
+              <div>
+                <h2>Investment History</h2>
+                <p>Previous decisions in this simulation.</p>
+              </div>
+            </div>
+
+            {investments.length === 0 ? (
+              <p className="emptyText">No investments yet.</p>
+            ) : (
+              <div className="historyList">
+                {investments.map((item) => (
+                  <div className="historyItem" key={item.investment_id}>
+                    <div>
+                      <strong>{item.sector_type}</strong>
+                      <span>Turn {item.turn_number}</span>
                     </div>
+
+                    <p>
+                      {fmtMoney(item.investment_amount)} | Dev +{item.development_effect} | Hap{" "}
+                      {item.happiness_effect >= 0 ? "+" : ""}
+                      {item.happiness_effect}
+                    </p>
                   </div>
                 ))}
               </div>
-            </section>
-
-            <section className="panel historyPanel">
-              <div className="panelHeader">
-                <div>
-                  <h2>Investment History</h2>
-                  <p>Previous decisions made in this simulation.</p>
-                </div>
-              </div>
-
-              {investments.length === 0 ? (
-                <p className="emptyText">No investments yet.</p>
-              ) : (
-                <div className="historyList">
-                  {investments.map((item) => (
-                    <div className="historyItem" key={item.investment_id}>
-                      <div>
-                        <strong>{item.sector_type}</strong>
-                        <span>Turn {item.turn_number}</span>
-                      </div>
-                      <p>
-                        {formatMoney(item.investment_amount)} | Dev +{item.development_effect} | Happiness {item.happiness_effect > 0 ? "+" : ""}
-                        {item.happiness_effect}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </section>
-          </>
+            )}
+          </section>
         )}
       </main>
     </div>
   );
 }
-
-export default App;

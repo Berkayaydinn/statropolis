@@ -1,316 +1,790 @@
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  min-height: 100vh;
-  font-family: Inter, Arial, sans-serif;
-  color: #eef6ff;
-  background:
-    radial-gradient(circle at top left, rgba(49, 130, 206, 0.32), transparent 28%),
-    radial-gradient(circle at bottom right, rgba(46, 204, 113, 0.16), transparent 25%),
-    linear-gradient(135deg, #06111f 0%, #071827 48%, #020712 100%);
-}
-
-button,
-select {
-  font-family: inherit;
-}
-
 .page {
-  position: relative;
-  min-height: 100vh;
-  overflow-x: hidden;
-  padding: 42px;
+  padding: 18px 18px 44px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(56, 189, 248, 0.14), transparent 30%),
+    radial-gradient(circle at 88% 8%, rgba(79, 70, 229, 0.12), transparent 26%),
+    linear-gradient(180deg, #06101f 0%, #06111f 46%, #030711 100%);
 }
 
-.mapOverlay {
-  position: fixed;
+.landingHero {
+  position: relative;
+  z-index: 1;
+  max-width: 1180px;
+  min-height: 520px;
+  overflow: hidden;
+  margin: 0 auto 20px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 28px;
+  background: #0a0e1a;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.42);
+}
+
+.landingCanvas {
+  position: absolute;
   inset: 0;
-  pointer-events: none;
-  opacity: 0.12;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.08) 1px, transparent 1px);
-  background-size: 80px 80px;
-  mask-image: radial-gradient(circle at center, black, transparent 72%);
+  width: 100%;
+  height: 100%;
+}
+
+.landingOverlay {
+  position: relative;
+  z-index: 3;
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 42px 22px 70px;
+  text-align: center;
+}
+
+.landingTag {
+  display: inline-block;
+  margin-bottom: 18px;
+  border: 1px solid rgba(126, 203, 255, 0.22);
+  border-radius: 999px;
+  padding: 8px 24px;
+  color: #9ee7ff;
+  background: rgba(126, 203, 255, 0.10);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  backdrop-filter: blur(14px);
+}
+
+.landingTitle {
+  margin: 0;
+  color: #eef3ff;
+  font-size: clamp(52px, 8vw, 92px);
+  font-weight: 700;
+  line-height: 0.95;
+  letter-spacing: -0.07em;
+}
+
+.landingTitle span {
+  color: #7ecbff;
+}
+
+.landingSub {
+  max-width: 720px;
+  margin: 18px auto 0;
+  color: rgba(225, 238, 255, 0.78);
+  font-size: clamp(16px, 1.6vw, 21px);
+  line-height: 1.65;
+}
+
+.landingButtons {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 30px;
+}
+
+.landingPrimary,
+.landingSecondary {
+  border-radius: 999px;
+  padding: 14px 28px;
+  font-size: 16px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease;
+}
+
+.landingPrimary {
+  border: 1px solid rgba(126, 203, 255, 0.55);
+  color: #071020;
+  background: #7ecbff;
+  box-shadow: 0 14px 40px rgba(126, 203, 255, 0.18);
+}
+
+.landingSecondary {
+  border: 1px solid rgba(200, 215, 255, 0.25);
+  color: rgba(238, 246, 255, 0.88);
+  background: rgba(7, 16, 32, 0.42);
+  backdrop-filter: blur(12px);
+}
+
+.landingPrimary:hover,
+.landingSecondary:hover {
+  transform: translateY(-2px);
+}
+
+.landingStats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(130px, 1fr));
+  width: min(720px, 92%);
+  margin-top: 46px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+}
+
+.landingStats div {
+  min-height: 86px;
+  padding: 17px 22px;
+  background: rgba(10, 14, 26, 0.56);
+}
+
+.landingStats div:not(:last-child) {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.landingStats span {
+  display: block;
+  margin-bottom: 6px;
+  color: rgba(225, 238, 255, 0.62);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.landingStats strong {
+  display: block;
+  color: #eef3ff;
+  font-size: 25px;
+  line-height: 1;
+}
+
+.cyanText {
+  color: #7ecbff !important;
+}
+
+.greenText {
+  color: #5fe0b0 !important;
+}
+
+.landingTicker {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
+  overflow: hidden;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(7, 16, 32, 0.88);
+  padding: 10px 0;
+}
+
+.landingTickerInner {
+  display: flex;
+  width: max-content;
+  gap: 46px;
+  white-space: nowrap;
+  animation: tickerMove 28s linear infinite;
+}
+
+.landingTickerInner span {
+  color: rgba(200, 215, 255, 0.58);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.landingTickerInner b {
+  color: #5fe0b0;
+}
+
+.landingTickerInner em {
+  color: #ff8a7a;
+  font-style: normal;
+}
+
+@keyframes tickerMove {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
 
 .hero {
-  position: relative;
-  z-index: 1;
-  max-width: 1050px;
-  margin: 0 auto 28px;
-}
-
-.eyebrow {
-  margin: 0 0 10px;
-  color: #7dd3fc;
-  text-transform: uppercase;
-  letter-spacing: 0.14em;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-h1 {
-  margin: 0;
-  font-size: clamp(46px, 7vw, 84px);
-  letter-spacing: -0.06em;
-}
-
-.subtitle {
-  max-width: 720px;
-  color: #bfd2e8;
-  font-size: 18px;
-  line-height: 1.6;
-  margin-top: 14px;
+  display: none;
 }
 
 .layout {
-  position: relative;
-  z-index: 1;
-  max-width: 1050px;
-  margin: 0 auto;
-  display: grid;
-  grid-template-columns: 1.05fr 0.95fr;
-  gap: 20px;
+  max-width: 1120px;
+  gap: 16px;
 }
 
 .panel {
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  background: rgba(7, 18, 34, 0.72);
-  backdrop-filter: blur(18px);
-  border-radius: 24px;
-  padding: 22px;
-  box-shadow: 0 22px 55px rgba(0, 0, 0, 0.25);
+  padding: 18px;
+  border-radius: 22px;
+  border-color: rgba(126, 203, 255, 0.15);
+  background: rgba(7, 18, 34, 0.76);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
 }
 
 .panelHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 13px;
 }
 
 .panel h2 {
-  margin: 0;
-  font-size: 22px;
+  font-size: 21px;
 }
 
-.panel p {
-  color: #afc2d8;
-  line-height: 1.55;
+.missionPanel {
+  padding: 22px;
+  border-color: rgba(126, 203, 255, 0.26);
+  background:
+    radial-gradient(circle at 8% 0%, rgba(126, 203, 255, 0.17), transparent 32%),
+    linear-gradient(135deg, rgba(8, 28, 48, 0.96), rgba(7, 18, 34, 0.84));
 }
 
-.panelHeader p {
-  margin: 6px 0 0;
+.missionTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 18px;
 }
 
-.setupPanel,
-.advisorPanel {
-  min-height: 260px;
-}
-
-.fieldLabel {
-  display: block;
+.missionLabel {
   margin-bottom: 8px;
-  color: #cfe7ff;
-  font-weight: 700;
-}
-
-select {
-  width: 100%;
-  border: 1px solid rgba(125, 211, 252, 0.34);
-  background: rgba(2, 8, 20, 0.72);
-  color: #eef6ff;
-  border-radius: 14px;
-  padding: 14px;
-  font-size: 15px;
-  outline: none;
-}
-
-.primaryButton {
-  width: 100%;
-  margin-top: 14px;
-  border: none;
-  border-radius: 14px;
-  padding: 14px 18px;
+  color: #7ecbff;
+  font-size: 12px;
   font-weight: 800;
-  color: #04111f;
-  background: linear-gradient(135deg, #7dd3fc, #34d399);
-  cursor: pointer;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
-.primaryButton:disabled,
-.sectorFooter button:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
-
-.messageBox {
-  margin-top: 16px;
-  padding: 14px;
-  border-radius: 14px;
-  color: #cfe7ff;
-  background: rgba(125, 211, 252, 0.1);
-  border: 1px solid rgba(125, 211, 252, 0.18);
-  line-height: 1.5;
-}
-
-.advisorPanel {
-  border-color: rgba(52, 211, 153, 0.25);
-}
-
-.statsPanel,
-.investmentPanel,
-.historyPanel {
-  grid-column: 1 / -1;
-}
-
-.turnBadge {
-  padding: 9px 13px;
-  border-radius: 999px;
-  background: rgba(52, 211, 153, 0.14);
-  color: #86efac;
-  font-weight: 800;
-  border: 1px solid rgba(52, 211, 153, 0.25);
-}
-
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-}
-
-.statCard {
-  padding: 18px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.09);
-}
-
-.statCard span {
-  display: block;
-  color: #9fb3c8;
-  font-size: 13px;
+.missionPanel h2 {
+  max-width: 900px;
   margin-bottom: 10px;
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
 }
 
-.statCard strong {
-  display: block;
-  font-size: 22px;
-}
-
-.sectorGrid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 15px;
-}
-
-.sectorCard {
-  padding: 18px;
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid rgba(255, 255, 255, 0.095);
-}
-
-.sectorIcon {
-  font-size: 30px;
-  margin-bottom: 10px;
-}
-
-.sectorCard h3 {
-  margin: 0;
-}
-
-.sectorCard p {
-  min-height: 72px;
-  margin-bottom: 16px;
+.missionPanel p {
+  max-width: 780px;
+  color: rgba(202, 220, 235, 0.72);
   font-size: 14px;
 }
 
-.sectorFooter {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  padding-top: 14px;
+.missionScore {
+  min-width: 155px;
+  border: 1px solid rgba(126, 203, 255, 0.24);
+  border-radius: 22px;
+  padding: 18px;
+  text-align: center;
+  background: rgba(4, 17, 31, 0.56);
 }
 
-.sectorFooter span {
-  color: #7dd3fc;
-  font-weight: 800;
-}
-
-.sectorFooter button {
-  border: none;
-  padding: 9px 14px;
-  border-radius: 12px;
-  color: #06111f;
-  background: #eef6ff;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.historyList {
-  display: grid;
-  gap: 12px;
-}
-
-.historyItem {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.055);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.historyItem strong {
+.missionScore strong {
   display: block;
+  color: #7ecbff;
+  font-size: 38px;
+  line-height: 1;
 }
 
-.historyItem span {
+.missionScore span {
   display: block;
-  margin-top: 4px;
-  color: #9fb3c8;
+  margin-top: 9px;
+  color: rgba(202, 220, 235, 0.68);
   font-size: 13px;
 }
 
+.missionStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0 14px;
+}
+
+.missionStats div {
+  border: 1px solid rgba(148, 190, 218, 0.14);
+  border-radius: 16px;
+  padding: 12px 14px;
+  background: rgba(9, 27, 49, 0.62);
+}
+
+.missionStats span {
+  display: block;
+  color: rgba(202, 220, 235, 0.58);
+  font-size: 12px;
+}
+
+.missionStats strong {
+  display: block;
+  margin-top: 5px;
+  color: #eef6ff;
+  font-size: 19px;
+}
+
+.goalBar {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 190, 218, 0.16);
+}
+
+.goalBar div {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7ecbff, #5fe0b0);
+}
+
+.worldMapWrap {
+  min-height: 350px !important;
+}
+
+.worldMapSvg text,
+.worldMapWrap text {
+  fill: #dff6ff !important;
+  stroke: rgba(0, 0, 0, 0.28) !important;
+  stroke-width: 0.35px !important;
+  paint-order: stroke !important;
+}
+
+.mapTooltip {
+  color: #eef6ff !important;
+  background: rgba(7, 18, 34, 0.98) !important;
+}
+
+.mapTooltip strong,
+.mapTooltip div,
+.mapTooltip span {
+  color: #eaf7ff !important;
+}
+
+.builderGame {
+  height: 340px !important;
+  border-radius: 20px !important;
+  background:
+    radial-gradient(circle at top, rgba(126, 203, 255, 0.13), transparent 34%),
+    linear-gradient(180deg, #071426 0%, #081827 100%) !important;
+}
+
+.builderControls {
+  top: 12px !important;
+  left: 12px !important;
+  gap: 7px !important;
+  align-items: center;
+}
+
+.builderControls button,
+.builderSectorControls button {
+  border: 1px solid rgba(126, 203, 255, 0.22) !important;
+  border-radius: 999px !important;
+  padding: 7px 11px !important;
+  color: #eaf7ff !important;
+  background: rgba(7, 18, 34, 0.78) !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(10px);
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.builderControls button.active,
+.builderSectorControls button.active {
+  color: #04111f !important;
+  background: #7ecbff !important;
+  border-color: #7ecbff !important;
+}
+
+.builderSectorControls .dangerTool {
+  color: #fecaca !important;
+  border-color: rgba(248, 113, 113, 0.35) !important;
+  background: rgba(127, 29, 29, 0.46) !important;
+}
+
+.builderSectorControls .dangerTool.active {
+  color: #fff !important;
+  background: #ef4444 !important;
+  border-color: #ef4444 !important;
+}
+
+.builderCountryLabel {
+  top: 12px !important;
+  right: 12px !important;
+  color: #eaf7ff !important;
+  background: rgba(7, 18, 34, 0.78) !important;
+}
+
+.statsGrid {
+  gap: 11px;
+}
+
+.statCard {
+  padding: 13px;
+}
+
+.statCard strong {
+  font-size: 18px;
+}
+
+.sectorGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 14px;
+}
+
+.sectorCard {
+  position: relative;
+  overflow: hidden;
+  min-height: 205px;
+  padding: 17px;
+  color: #eaf7ff;
+  background: rgba(8, 26, 48, 0.84);
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.sectorCard::after {
+  content: "";
+  position: absolute;
+  right: -35px;
+  bottom: -55px;
+  width: 150px;
+  height: 150px;
+  border-radius: 999px;
+  background: rgba(126, 203, 255, 0.07);
+}
+
+.sectorCard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(126, 203, 255, 0.34);
+  background: rgba(10, 34, 60, 0.82);
+}
+
+.sectorTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.sectorIcon {
+  font-size: 29px;
+}
+
+.sectorCard h3 {
+  color: #f1f8ff;
+  font-size: 20px;
+}
+
+.sectorCard p {
+  min-height: 48px;
+  color: rgba(220, 236, 250, 0.76);
+  font-size: 13px;
+}
+
+.riskBadge {
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #eaf7ff;
+  background: rgba(126, 203, 255, 0.12);
+  border: 1px solid rgba(126, 203, 255, 0.20);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.riskRisky,
+.riskHighRisk {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.13);
+  border-color: rgba(248, 113, 113, 0.22);
+}
+
+.riskSafe,
+.riskStable {
+  color: #bbf7d0;
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.20);
+}
+
+.impactRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 14px 0 2px;
+}
+
+.impactRow span {
+  border: 1px solid rgba(126, 203, 255, 0.18);
+  border-radius: 999px;
+  padding: 6px 10px;
+  color: #dff6ff;
+  background: rgba(126, 203, 255, 0.08);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.sectorFooter span {
+  color: #7ecbff;
+}
+
+.sectorFooter button {
+  border: 1px solid rgba(126, 203, 255, 0.38) !important;
+  border-radius: 999px;
+  padding: 9px 15px;
+  color: #eaf7ff;
+  background: rgba(7, 18, 34, 0.72);
+}
+
+.sectorFooter button:hover {
+  color: #04111f;
+  background: #7ecbff;
+}
+
+.historyItem {
+  padding: 12px 14px;
+}
+
+.historyItem strong {
+  color: #eaf7ff;
+}
+
 .historyItem p {
-  margin: 0;
-  text-align: right;
+  color: rgba(220, 236, 250, 0.76);
 }
 
-.emptyText {
-  color: #9fb3c8;
-}
-
-@media (max-width: 850px) {
-  .page {
-    padding: 24px;
+@media (max-width: 860px) {
+  .landingHero {
+    min-height: 560px;
   }
 
-  .layout {
-    grid-template-columns: 1fr;
+  .landingOverlay {
+    min-height: 560px;
   }
 
-  .statsGrid,
-  .sectorGrid {
-    grid-template-columns: 1fr;
+  .landingStats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .historyItem {
-    align-items: flex-start;
+  .missionTop {
     flex-direction: column;
   }
 
-  .historyItem p {
-    text-align: left;
+  .missionScore {
+    min-width: 100%;
   }
+
+  .missionStats {
+    grid-template-columns: 1fr;
+  }
+
+  .worldMapWrap {
+    min-height: 300px !important;
+  }
+
+  .builderGame {
+    height: 310px !important;
+  }
+
+  .sectorGrid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.page,
+.panel,
+.panel *,
+.countryPanel,
+.countryPanel *,
+.builderPanel,
+.builderPanel *,
+.investmentPanel,
+.investmentPanel *,
+.historyPanel,
+.historyPanel *,
+.missionPanel,
+.missionPanel *,
+.mapSection,
+.mapSection * {
+  color: #eaf7ff;
+}
+
+.panel p,
+.panelHeader p,
+.builderPanel p,
+.countryPanel p,
+.investmentPanel p,
+.historyPanel p,
+.messageBox,
+.emptyText {
+  color: rgba(220, 236, 250, 0.78) !important;
+}
+
+.panel h2,
+.panel h3,
+.countryPanel h2,
+.builderPanel h2,
+.investmentPanel h2,
+.historyPanel h2,
+.missionPanel h2 {
+  color: #f3f9ff !important;
+}
+
+.statCard span,
+.historyItem span,
+.missionStats span {
+  color: rgba(220, 236, 250, 0.64) !important;
+}
+
+.statCard strong,
+.historyItem strong,
+.missionStats strong {
+  color: #eef6ff !important;
+}
+
+.turnBadge,
+.builderCountryLabel {
+  color: #eaf7ff !important;
+}
+
+.sectorCard h3 {
+  color: #f3f9ff !important;
+}
+
+.sectorCard p {
+  color: rgba(220, 236, 250, 0.78) !important;
+}
+
+.sectorFooter span {
+  color: #7ecbff !important;
+}
+
+.impactRow span {
+  color: #dff6ff !important;
+}
+
+.riskBadge {
+  color: #eaf7ff !important;
+}
+
+.messageBox {
+  border-color: rgba(126, 203, 255, 0.22) !important;
+  background: rgba(56, 189, 248, 0.08) !important;
+}
+
+.primaryButton,
+.sectorFooter button,
+.landingPrimary {
+  color: #04111f !important;
+}
+
+.landingSecondary {
+  color: #eef6ff !important;
+}
+
+.builderControls button,
+.builderSectorControls button {
+  color: #eaf7ff !important;
+}
+
+.builderControls button.active,
+.builderSectorControls button.active {
+  color: #04111f !important;
+}
+
+.builderSectorControls .dangerTool,
+.builderSectorControls .dangerTool.active {
+  color: #fff !important;
+}
+
+/* Browser default styles sometimes make text black inside buttons/labels */
+button,
+select,
+option {
+  color: inherit;
+}
+
+/* Keep the active cyan buttons readable */
+button.primaryButton,
+.sectorFooter button:hover,
+.builderControls button.active,
+.builderSectorControls button.active {
+  color: #04111f !important;
+}
+
+.worldMapSvg text {
+  display: none !important;
+}
+
+.worldMapSvg path.country {
+  transition: fill 0.12s ease;
+}
+
+.worldMapWrap {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+.mapTooltip {
+  transform: translateZ(0);
+  will-change: left, top;
+}
+
+/* Stable country markers: keep dots and flags visible without map jumping */
+
+.worldMapWrap {
+  overflow: hidden !important;
+  min-height: 350px !important;
+}
+
+.worldMapSvg {
+  display: block !important;
+  width: 100% !important;
+}
+
+.worldMapSvg text {
+  display: block !important;
+}
+
+.worldMapSvg .mapMarkerFlag {
+  fill: #eaf7ff !important;
+  stroke: rgba(0, 0, 0, 0.35) !important;
+  stroke-width: 0.35px !important;
+  paint-order: stroke !important;
+}
+
+.worldMapSvg .mapMarkerDot {
+  filter: drop-shadow(0 0 5px rgba(126, 203, 255, 0.65));
+}
+
+.worldMapSvg path.country {
+  transition: fill 0.1s ease;
+}
+
+.mapTooltip {
+  transform: translateZ(0);
+  will-change: left, top;
+}
+
+.worldMapWrap {
+  overflow: hidden !important;
+  min-height: 350px !important;
+}
+
+.worldMapSvg {
+  display: block !important;
+  width: 100% !important;
+}
+
+.worldMapSvg text {
+  display: block !important;
+}
+
+.worldMapSvg .mapMarkerFlag {
+  fill: #eaf7ff !important;
+  stroke: rgba(0, 0, 0, 0.35) !important;
+  stroke-width: 0.35px !important;
+  paint-order: stroke !important;
+}
+
+.worldMapSvg .mapMarkerDot {
+  filter: drop-shadow(0 0 5px rgba(126, 203, 255, 0.65));
+}
+
+.worldMapSvg path.country {
+  transition: fill 0.1s ease;
+}
+
+.mapTooltip {
+  transform: translateZ(0);
+  will-change: left, top;
 }
