@@ -378,18 +378,11 @@ export default function WorldMap({ countries = [], onSelect }) {
             <span>Life expectancy</span>
             <b>{formatYears(tooltip.lifeExpectancy)}</b>
           </div>
-      
-          <div>
-            <span>Literacy rate</span>
-            <b>{formatPercent(tooltip.literacyRate)}</b>
-          </div>
-      
+
           <div>
             <span>Unemployment</span>
             <b>{formatPercent(tooltip.unemployment)}</b>
           </div>
-      
-          <em>Click to select →</em>
         </div>
       )}
       <div className="mapLegend">
