@@ -1082,3 +1082,50 @@ button.primaryButton,
 .resultModalLose {
   border: 1.5px solid rgba(248, 113, 113, 0.75);
 }
+
+.mapTooltip {
+  min-width: 245px !important;
+  max-width: 300px !important;
+  padding: 13px 15px !important;
+  border: 1px solid rgba(125, 211, 252, 0.38) !important;
+  border-radius: 16px !important;
+  background: rgba(6, 18, 35, 0.96) !important;
+  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.42) !important;
+  backdrop-filter: blur(8px) !important;
+  z-index: 50 !important;
+}
+
+.mapTooltip strong {
+  display: block !important;
+  margin-bottom: 9px !important;
+  font-size: 15px !important;
+  color: #f8fbff !important;
+}
+
+.mapTooltip div {
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 14px !important;
+  font-size: 13px !important;
+  line-height: 1.55 !important;
+  color: rgba(226, 236, 249, 0.88) !important;
+}
+
+.mapTooltip div span {
+  opacity: 0.82 !important;
+}
+
+.mapTooltip div b {
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  text-align: right !important;
+}
+
+.mapTooltip em {
+  display: block !important;
+  margin-top: 9px !important;
+  font-size: 12px !important;
+  font-style: normal !important;
+  color: rgba(125, 211, 252, 0.95) !important;
+}
