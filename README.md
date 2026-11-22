@@ -1,21 +1,22 @@
 # Statropolis
 
+> **Project status:** Educational prototype under technical review. Authentication, transaction guarantees, automated tests, and the planned AI advisor should not be considered production-ready.
+
 Statropolis is a web-based strategic nation simulation platform where users manage a country, allocate investments across economic sectors, and compete through measurable development and performance indicators.
 
-The system is designed with a strong emphasis on transactional consistency, relational data integrity, analytical computation, and modular architecture. It integrates database-driven logic with an AI-powered strategic advisory module.
+The prototype focuses on relational data integrity, SQL-backed gameplay, analytical queries, and modular architecture. It uses database-driven gameplay logic. A rule-based advisory module is planned but not yet implemented.
 
 ---
 
 ## 🚀 Core Features
 
-- Secure user authentication (Register / Login)
+- Prototype username-based player profiles (no password authentication)
 - Single-country ownership per user (database-enforced constraint)
 - Turn-based investment execution system
 - Real-time budget and development score updates
 - Historical investment tracking
 - Competitive leaderboard ranking
 - Sector-based analytical reporting
-- AI-driven investment recommendation engine
 
 ---
 
@@ -24,18 +25,18 @@ The system is designed with a strong emphasis on transactional consistency, rela
 Statropolis follows a modular layered architecture:
 
 - **Frontend:** React (Vite)
-- **Backend:** Node.js + Express
+- **Backend:** Python + FastAPI
 - **Database:** PostgreSQL
-- **AI Engine:** Python-based advisory module
+- **Planned extension:** Rule-based investment advisor
 - **Communication:** RESTful API
 
 ### Architectural Principles
 
 - Separation of concerns
 - Database-first modeling
-- Transactional safety
+- Database constraints and validation
 - Layered abstraction
-- Scalable and extensible design
+- Modular prototype architecture
 
 Each layer operates independently and communicates through clearly defined interfaces.
 
@@ -55,10 +56,10 @@ Each layer operates independently and communicates through clearly defined inter
 - One country per user (`UNIQUE user_id`)
 - Budget cannot go below zero (`CHECK budget >= 0`)
 - Strict foreign key relationships
-- Indexed columns for optimized query execution
-- Transaction-controlled investment updates
+- Primary-key and uniqueness constraints
+- Investment transaction behavior (integration testing pending)
 
-### Transaction Flow (Investment Execution)
+### Intended Investment Transaction Flow
 
 1. Validate sufficient budget
 2. Insert investment record
@@ -66,25 +67,19 @@ Each layer operates independently and communicates through clearly defined inter
 4. Increment turn counter
 5. Commit transaction (or rollback on failure)
 
-This ensures atomicity and prevents inconsistent system states.
+This is the intended transaction flow. Atomicity and rollback behavior have not yet been verified through integration tests.
 
 ---
 
 ## 🤖 AI Investment Advisor
 
-The AI module analyzes:
+**Status: Planned.**
 
-- Current budget allocation
-- Development score trends
-- Historical investment patterns
-- Sector growth behavior
+The repository includes a placeholder for a future
+rule-based investment advisor. It does not currently
+implement a trained ML model or a working recommendation
+engine.
 
-It generates:
-
-- Recommended investment sector
-- Strategic reasoning explanation
-
-The AI system is modular and designed for future integration with machine learning models.
 
 ---
 
@@ -97,7 +92,7 @@ Statropolis performs analytical computations directly at the database layer usin
 - Investment history tracking (`JOIN`)
 - Trend-based performance evaluation
 
-This approach ensures scalability, correctness, and performance efficiency.
+These queries support reporting and analytics. Query performance has not been benchmarked.
 
 ---
 
@@ -109,7 +104,7 @@ The system enforces:
 - Duplicate country selection restriction
 - Referential integrity across all entities
 - Input validation at the application layer
-- Centralized error handling middleware
+- API error handling (test coverage under review)
 
 ---
 
@@ -118,5 +113,6 @@ The system enforces:
 ### 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/your-username/statropolis.git
+git clone https://github.com/Berkayaydinn/statropolis.git
 cd statropolis
+```
